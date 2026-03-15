@@ -22,7 +22,16 @@ An MCP server that reads your `~/.claude/` memory files and renders them as an i
 - **Node.js >= 18** (no npm packages needed — zero dependencies)
 - **Claude Code** with memory system enabled (`~/.claude/` directory)
 
-### Setup
+### Via Claude Code Marketplace (recommended)
+
+```
+/plugin marketplace add cdeust/memory-monitor
+/plugin install memory-monitor
+```
+
+Restart Claude Code after installation.
+
+### Manual Setup
 
 ```bash
 git clone https://github.com/cdeust/memory-monitor.git

@@ -1,8 +1,11 @@
 {
   "name": "memory-monitor",
-  "description": "Divergent-inspired interactive visualization of Claude Code memory files as a node-graph with circuit-trace aesthetics",
+  "description": "Neural brain map visualization of Claude Code memory files — interactive 3D graph with Three.js, bloom, flow particles, and analytics dashboard",
+  "version": "1.0.0",
   "author": {
-    "name": "Clement Deust"
+    "name": "Clement Deust",
+    "email": "admin@ai-architect.tools"
   },
+  "homepage": "https://github.com/cdeust/memory-monitor",
   "mcpServers": "./.mcp.json"
 }
