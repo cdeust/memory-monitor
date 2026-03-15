@@ -1,0 +1,8 @@
+{
+  "name": "memory-monitor",
+  "description": "Divergent-inspired interactive visualization of Claude Code memory files as a node-graph with circuit-trace aesthetics",
+  "author": {
+    "name": "Clement Deust"
+  },
+  "mcpServers": "./.mcp.json"
+}
