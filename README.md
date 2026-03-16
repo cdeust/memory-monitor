@@ -4,6 +4,8 @@ Neural brain map visualization for Claude Code's persistent memory system.
 
 An MCP server that reads your `~/.claude/` memory files and renders them as an interactive 3D neural network in your browser — powered by Three.js with bloom, vignette, synaptic flow particles, and force-directed clustering.
 
+![Memory Monitor — Neural Brain Map](docs/assets/brain-map.png)
+
 ![Three.js Neural Brain Map](https://img.shields.io/badge/Three.js-WebGL-00d2ff?style=flat-square) ![MCP Protocol](https://img.shields.io/badge/MCP-Protocol-26de81?style=flat-square) ![Zero Dependencies](https://img.shields.io/badge/Dependencies-Zero-ff6b35?style=flat-square)
 
 ## What It Does
