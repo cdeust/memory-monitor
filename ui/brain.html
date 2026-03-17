@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Neural Cortex — Claude</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#000; overflow:hidden; width:100vw; height:100vh; font-family:'SF Mono','Fira Code',monospace; }
+canvas { display:block; position:absolute; top:0; left:0; }
+
+/* ── Top bar ────────────────────────────────────────────────────── */
+#topbar {
+  position:fixed; top:0; left:0; right:0; height:42px;
+  background:rgba(0,0,0,0.82); border-bottom:1px solid rgba(255,255,255,0.06);
+  backdrop-filter:blur(12px);
+  display:flex; align-items:center; gap:6px; padding:0 14px;
+  z-index:200;
+}
+
+#back {
+  background:transparent; border:1px solid rgba(255,255,255,0.1);
+  border-radius:3px; padding:4px 11px;
+  color:rgba(255,255,255,0.35); font-size:9px; letter-spacing:2px;
+  text-transform:uppercase; cursor:pointer; transition:all .2s; text-decoration:none;
+  flex-shrink:0;
+}
+#back:hover { color:rgba(255,255,255,0.75); border-color:rgba(255,255,255,0.25); }
+
+#search-brain {
+  background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+  border-radius:3px; padding:4px 10px; color:rgba(255,255,255,0.6);
+  font-family:inherit; font-size:10px; width:150px; outline:none;
+  transition:border-color .2s;
+}
+#search-brain::placeholder { color:rgba(255,255,255,0.2); }
+#search-brain:focus { border-color:rgba(255,255,255,0.2); }
+
+.filter-bar { display:flex; gap:2px; flex-wrap:nowrap; overflow-x:auto; }
+.filter-bar::-webkit-scrollbar { display:none; }
+
+.fbtn {
+  background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.07);
+  border-radius:3px; padding:3px 9px; color:rgba(255,255,255,0.3);
+  font-family:inherit; font-size:9px; letter-spacing:.5px; text-transform:uppercase;
+  cursor:pointer; transition:all .2s; white-space:nowrap;
+}
+.fbtn:hover  { color:rgba(255,255,255,0.6); border-color:rgba(255,255,255,0.18); }
+.fbtn.active { color:rgba(255,255,255,0.85); border-color:rgba(255,255,255,0.4); background:rgba(255,255,255,0.08); }
+
+#stats-brain {
+  margin-left:auto; flex-shrink:0;
+  font-size:9px; color:rgba(255,255,255,0.2); letter-spacing:.5px;
+  white-space:nowrap;
+}
+#stats-brain span { color:rgba(255,255,255,0.5); }
+
+#conv-toggle-brain {
+  flex-shrink:0;
+  background:transparent; border:1px solid rgba(255,255,255,0.07);
+  border-radius:3px; padding:3px 10px; color:rgba(255,255,255,0.25);
+  font-family:inherit; font-size:9px; letter-spacing:.5px; text-transform:uppercase;
+  cursor:pointer; transition:all .2s;
+}
+#conv-toggle-brain:hover { color:rgba(255,255,255,0.5); border-color:rgba(255,255,255,0.2); }
+#conv-toggle-brain.active { color:rgba(255,255,255,0.7); border-color:rgba(255,255,255,0.3); background:rgba(255,255,255,0.06); }
+
+#layout-toggle-brain {
+  flex-shrink:0;
+  background:transparent; border:1px solid rgba(255,255,255,0.07);
+  border-radius:3px; padding:3px 10px; color:rgba(255,255,255,0.25);
+  font-family:inherit; font-size:9px; letter-spacing:.5px; text-transform:uppercase;
+  cursor:pointer; transition:all .2s;
+}
+#layout-toggle-brain:hover { color:rgba(255,255,255,0.5); border-color:rgba(255,255,255,0.2); }
+#layout-toggle-brain.active { color:rgba(255,255,255,0.7); border-color:rgba(255,255,255,0.3); background:rgba(255,255,255,0.06); }
+
+#analytics-toggle-brain {
+  flex-shrink:0;
+  background:transparent; border:1px solid rgba(255,255,255,0.07);
+  border-radius:3px; padding:3px 10px; color:rgba(255,255,255,0.25);
+  font-family:inherit; font-size:9px; letter-spacing:.5px; text-transform:uppercase;
+  cursor:pointer; transition:all .2s;
+}
+#analytics-toggle-brain:hover { color:rgba(255,255,255,0.5); border-color:rgba(255,255,255,0.2); }
+#analytics-toggle-brain.active { color:rgba(255,255,255,0.7); border-color:rgba(255,255,255,0.3); background:rgba(255,255,255,0.06); }
+
+/* ── Filter row 2 ───────────────────────────────────────────────── */
+#filter-row-2-brain {
+  position:fixed; top:42px; left:0; right:0;
+  display:flex; align-items:center; gap:8px; padding:3px 14px;
+  background:rgba(0,0,0,0.72); border-bottom:1px solid rgba(255,255,255,0.04);
+  backdrop-filter:blur(10px);
+  z-index:199; height:28px;
+}
+.cat-bar-brain { display:flex; gap:2px; flex-wrap:nowrap; overflow-x:auto; }
+.cat-bar-brain::-webkit-scrollbar { display:none; }
+.cbtn {
+  background:transparent; border:1px solid transparent;
+  border-radius:3px; padding:2px 8px; color:rgba(255,255,255,0.2);
+  font-family:inherit; font-size:8px; letter-spacing:.5px; text-transform:uppercase;
+  cursor:pointer; transition:all .2s; white-space:nowrap;
+}
+.cbtn:hover { color:rgba(255,255,255,0.5); }
+.cbtn.active { color:rgba(255,255,255,0.75); border-color:rgba(255,255,255,0.25); background:rgba(255,255,255,0.05); }
+
+#thread-select-brain {
+  background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08);
+  border-radius:3px; color:rgba(255,255,255,0.35); font-family:inherit; font-size:9px;
+  padding:2px 6px; outline:none;
+}
+.status-bar-brain { display:flex; gap:2px; margin-left:auto; }
+.sbtn {
+  background:transparent; border:1px solid transparent;
+  border-radius:3px; padding:2px 8px; color:rgba(255,255,255,0.2);
+  font-family:inherit; font-size:8px; letter-spacing:.5px; text-transform:uppercase;
+  cursor:pointer; transition:all .2s;
+}
+.sbtn:hover { color:rgba(255,255,255,0.5); }
+.sbtn.active { color:rgba(255,255,255,0.75); border-color:rgba(255,255,255,0.25); background:rgba(255,255,255,0.05); }
+
+/* ── Detail Panel ───────────────────────────────────────────────── */
+#panel {
+  position:fixed; top:70px; right:-360px; width:340px; height:calc(100vh - 70px);
+  background:rgba(0,0,0,0.92); border-left:1px solid rgba(255,255,255,0.08);
+  padding:20px 18px; overflow-y:auto; transition:right .3s ease;
+  z-index:300;
+}
+#panel.open { right:0; }
+#panel-close {
+  position:absolute; top:12px; right:14px;
+  color:rgba(255,255,255,0.25); cursor:pointer; font-size:16px;
+  transition:color .2s;
+}
+#panel-close:hover { color:rgba(255,255,255,0.7); }
+#panel-type {
+  font-size:8px; letter-spacing:3px; text-transform:uppercase;
+  color:rgba(255,255,255,0.3); margin-bottom:6px; margin-top:8px;
+}
+#panel-name {
+  font-size:14px; color:#fff; font-weight:600; line-height:1.4;
+  margin-bottom:4px; word-break:break-word;
+}
+#panel-proj {
+  font-size:9px; color:rgba(255,255,255,0.25); margin-bottom:14px;
+}
+#panel-desc {
+  font-size:10px; color:rgba(255,255,255,0.5); line-height:1.6;
+  margin-bottom:14px; word-break:break-word;
+}
+.panel-section { margin-bottom:14px; }
+.panel-label {
+  font-size:8px; letter-spacing:2px; text-transform:uppercase;
+  color:rgba(255,255,255,0.2); margin-bottom:6px;
+}
+.panel-body {
+  font-size:10px; color:rgba(255,255,255,0.45); line-height:1.7;
+  word-break:break-word; white-space:pre-wrap;
+  border-left:1px solid rgba(255,255,255,0.08); padding-left:10px;
+}
+.panel-stat {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.05);
+  font-size:9px;
+}
+.panel-stat .k { color:rgba(255,255,255,0.25); }
+.panel-stat .v { color:rgba(255,255,255,0.65); }
+.msg-entry {
+  font-size:9px; color:rgba(255,255,255,0.35); line-height:1.5;
+  padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.04);
+}
+.msg-entry .role { color:rgba(255,255,255,0.2); letter-spacing:1px; text-transform:uppercase; font-size:8px; }
+.msg-entry.user { border-left:2px solid rgba(255,255,255,0.12); padding-left:6px; }
+.msg-entry.assistant { border-left:2px solid rgba(255,255,255,0.05); padding-left:6px; }
+.meta-grid {
+  display:grid; grid-template-columns:1fr 1fr; gap:3px 12px;
+  font-size:9px; padding:8px; margin:6px 0;
+  background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:3px;
+}
+.meta-grid .ml { color:rgba(255,255,255,0.2); text-transform:uppercase; font-size:8px; letter-spacing:.5px; }
+.meta-grid .mv { color:rgba(255,255,255,0.5); }
+.todo-item {
+  display:flex; gap:6px; padding:3px 0; font-size:9px;
+  border-bottom:1px solid rgba(255,255,255,0.04);
+}
+
+/* ── Analytics Panel ────────────────────────────────────────────── */
+#analytics-brain {
+  position:fixed; top:0; left:0; bottom:0; width:360px;
+  background:rgba(0,0,0,0.92); border-right:1px solid rgba(255,255,255,0.08);
+  transform:translateX(-100%); transition:transform .4s cubic-bezier(.16,1,.3,1);
+  z-index:300; overflow-y:auto; padding:52px 14px 20px;
+}
+#analytics-brain.open { transform:translateX(0); }
+.a-title {
+  font-size:9px; font-weight:600; color:rgba(255,255,255,0.5);
+  letter-spacing:1.5px; text-transform:uppercase; margin-bottom:6px;
+}
+.a-card { margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.04); }
+.a-card:last-child { border-bottom:none; }
+.kpi-strip { display:flex; gap:4px; }
+.kpi-box { flex:1; text-align:center; padding:7px 4px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:3px; }
+.kpi-v { font-size:16px; font-weight:700; color:rgba(255,255,255,0.85); line-height:1.2; }
+.kpi-l { font-size:7px; color:rgba(255,255,255,0.25); letter-spacing:.5px; text-transform:uppercase; margin-top:2px; }
+.a-card canvas { width:100% !important; display:block; border-radius:2px; }
+
+/* ── Tooltip ────────────────────────────────────────────────────── */
+#tooltip-brain {
+  position:fixed; display:none; pointer-events:none; z-index:500;
+  background:rgba(0,0,0,0.9); border:1px solid rgba(255,255,255,0.1);
+  border-radius:4px; padding:8px 12px; max-width:280px;
+  backdrop-filter:blur(12px);
+}
+#tooltip-brain .tt-name { font-size:11px; color:#fff; font-weight:600; margin-bottom:2px; }
+#tooltip-brain .tt-type { font-size:8px; color:rgba(255,255,255,0.3); letter-spacing:2px; text-transform:uppercase; }
+#tooltip-brain .tt-proj { font-size:9px; color:rgba(255,255,255,0.2); margin-top:2px; }
+
+/* ── Chart tooltip ──────────────────────────────────────────────── */
+#chart-tooltip-brain {
+  position:fixed; display:none; pointer-events:none; z-index:600;
+  background:rgba(0,0,0,0.95); border:1px solid rgba(255,255,255,0.15);
+  border-radius:3px; padding:5px 9px; font-size:9px; color:rgba(255,255,255,0.7);
+  backdrop-filter:blur(10px); max-width:200px;
+}
+
+/* ── Legend ─────────────────────────────────────────────────────── */
+#legend-brain {
+  position:fixed; bottom:14px; left:14px;
+  background:rgba(0,0,0,0.7); border:1px solid rgba(255,255,255,0.05);
+  border-radius:4px; padding:9px 12px; backdrop-filter:blur(10px);
+  font-size:8px; color:rgba(255,255,255,0.2); z-index:100;
+}
+.leg-row { display:flex; align-items:center; gap:5px; padding:1px 0; }
+.leg-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+
+/* ── HUD ────────────────────────────────────────────────────────── */
+#hud {
+  position:fixed; bottom:14px; left:50%; transform:translateX(-50%);
+  font-size:8px; color:rgba(255,255,255,0.18); letter-spacing:3px;
+  text-transform:uppercase; pointer-events:none; white-space:nowrap;
+}
+#hint {
+  position:fixed; bottom:30px; left:50%; transform:translateX(-50%);
+  font-size:8px; color:rgba(255,255,255,0.12); letter-spacing:2px;
+  pointer-events:none;
+}
+
+::-webkit-scrollbar { width:3px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.08); border-radius:2px; }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div id="topbar">
+  <a href="/" id="back">← Map</a>
+  <input id="search-brain" type="text" placeholder="Search neurons…">
+  <div class="filter-bar">
+    <button class="fbtn active" data-type="all">All</button>
+    <button class="fbtn" data-type="user">User</button>
+    <button class="fbtn" data-type="feedback">Feedback</button>
+    <button class="fbtn" data-type="project">Project</button>
+    <button class="fbtn" data-type="reference">Reference</button>
+    <button class="fbtn" data-type="memory-index">Mem Index</button>
+    <button class="fbtn" data-type="project-file">Proj File</button>
+    <button class="fbtn" data-type="project-hub">Hubs</button>
+    <button class="fbtn" data-type="settings">Settings</button>
+    <button class="fbtn" data-type="__global__">Global</button>
+    <button class="fbtn" data-type="conversation">Chatlogs</button>
+    <button class="fbtn" data-type="plan">Plans</button>
+    <button class="fbtn" data-type="mcp-tool">MCP Tools</button>
+    <button class="fbtn" data-type="plugin">Plugins</button>
+    <button class="fbtn" data-type="todo">Todos</button>
+  </div>
+  <button id="conv-toggle-brain">Show chatlogs</button>
+  <button id="layout-toggle-brain">Cluster</button>
+  <button id="analytics-toggle-brain">Analytics</button>
+  <div id="stats-brain"></div>
+</div>
+
+<!-- Filter row 2 -->
+<div id="filter-row-2-brain">
+  <div class="cat-bar-brain" id="cat-bar-brain">
+    <button class="cbtn active" data-cat="all">All</button>
+  </div>
+  <select id="thread-select-brain"><option value="">All Threads</option></select>
+  <div class="status-bar-brain">
+    <button class="sbtn active" data-status="all">All</button>
+    <button class="sbtn" data-status="active">Active</button>
+    <button class="sbtn" data-status="archived">Archived</button>
+    <button class="sbtn" data-status="pinned">Pinned</button>
+  </div>
+</div>
+
+<!-- Detail panel -->
+<div id="panel">
+  <span id="panel-close">✕</span>
+  <div id="panel-type"></div>
+  <div id="panel-name"></div>
+  <div id="panel-proj"></div>
+  <div id="panel-desc"></div>
+  <div id="panel-content"></div>
+</div>
+
+<!-- Analytics panel -->
+<div id="analytics-brain">
+  <div class="a-card">
+    <div class="a-title">Overview</div>
+    <div class="kpi-strip">
+      <div class="kpi-box"><div class="kpi-v" id="kpi-b-sessions">0</div><div class="kpi-l">Sessions</div></div>
+      <div class="kpi-box"><div class="kpi-v" id="kpi-b-messages">0</div><div class="kpi-l">Messages</div></div>
+      <div class="kpi-box"><div class="kpi-v" id="kpi-b-memories">0</div><div class="kpi-l">Memories</div></div>
+      <div class="kpi-box"><div class="kpi-v" id="kpi-b-projects">0</div><div class="kpi-l">Projects</div></div>
+    </div>
+  </div>
+  <div class="a-card">
+    <div class="a-title">Sessions Over Time</div>
+    <canvas id="a-chart-timeline" height="90"></canvas>
+  </div>
+  <div class="a-card">
+    <div class="a-title">Category Breakdown</div>
+    <canvas id="a-chart-categories" height="120"></canvas>
+  </div>
+  <div class="a-card">
+    <div class="a-title">Top Tools</div>
+    <canvas id="a-chart-tools" height="120"></canvas>
+  </div>
+  <div class="a-card">
+    <div class="a-title">Project Coverage</div>
+    <canvas id="a-chart-projects" height="120"></canvas>
+  </div>
+</div>
+
+<!-- Tooltip -->
+<div id="tooltip-brain">
+  <div class="tt-name"></div>
+  <div class="tt-type"></div>
+  <div class="tt-proj"></div>
+</div>
+
+<!-- Chart tooltip -->
+<div id="chart-tooltip-brain"></div>
+
+<!-- Legend -->
+<div id="legend-brain">
+  <div style="font-size:7px;color:rgba(255,255,255,0.15);margin-bottom:5px;letter-spacing:.1em">NEURON TYPES</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#fff"></div>Global / Settings</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#e0e0e0"></div>Project Hub</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#b8b8b8"></div>Memory Index</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#999"></div>Plan / Plugin</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#777"></div>Memory / File</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#444"></div>Chatlog</div>
+</div>
+
+<div id="hud"></div>
+<div id="hint">Click a neuron to inspect · Drag to rotate · Scroll to zoom · A = Analytics</div>
+
+<script src="https://unpkg.com/three@0.137.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.137.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://unpkg.com/three@0.137.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://unpkg.com/three@0.137.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://unpkg.com/three@0.137.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://unpkg.com/three@0.137.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://unpkg.com/three@0.137.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="https://unpkg.com/three@0.137.0/examples/js/postprocessing/ShaderPass.js"></script>
+
+<script>
+/*__GRAPH_DATA__*/
+
+const { nodes, edges } = window.__GRAPH_DATA__;
+const W = window.innerWidth, H = window.innerHeight;
+
+// ── Helpers ────────────────────────────────────────────────────────
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function cleanProject(raw) {
+  if (!raw) return 'unknown';
+  let p = raw.replace(/^-Users-[^-]+-/,'').replace(/-/g,'/');
+  p = p.replace(/^Developments\//,'').replace(/\/worktrees\/.*$/,'');
+  p = p.replace(/\/+/g,'/').replace(/\/$/,'');
+  const segs = p.split('/').filter(Boolean);
+  return segs.length > 3 ? segs.slice(-3).join('/') : (p || 'unknown');
+}
+
+const CATEGORY_COLORS = {
+  'bug-fix':'#ff4444','feature':'#44ff44','refactor':'#44aaff',
+  'research':'#ffaa00','config':'#888','docs':'#aaddff',
+  'debug':'#ff8800','architecture':'#aa44ff','deployment':'#00ddaa',
+  'testing':'#ffdd00','general':'#666'
+};
+
+// ── Scene ──────────────────────────────────────────────────────────
+const scene    = new THREE.Scene();
+const camera   = new THREE.PerspectiveCamera(50, W/H, 0.5, 3000);
+camera.position.set(0, 40, 560);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(W, H);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping   = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+document.body.appendChild(renderer.domElement);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping   = true;
+controls.dampingFactor   = 0.04;
+controls.autoRotate      = true;
+controls.autoRotateSpeed = 0.25;
+controls.minDistance     = 60;
+controls.maxDistance     = 1400;
+
+// Post — subtle bloom only on bright neurons
+const composer = new THREE.EffectComposer(renderer);
+composer.addPass(new THREE.RenderPass(scene, camera));
+const bloom = new THREE.UnrealBloomPass(new THREE.Vector2(W, H), 0.9, 0.5, 0.55);
+composer.addPass(bloom);
+// Vignette
+composer.addPass(new THREE.ShaderPass({
+  uniforms: { tDiffuse: { value: null } },
+  vertexShader:  `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+  fragmentShader:`uniform sampler2D tDiffuse; varying vec2 vUv;
+    void main(){
+      vec4 c = texture2D(tDiffuse,vUv);
+      vec2 uv=(vUv-.5)*2.;
+      gl_FragColor = vec4(c.rgb*clamp(1.-dot(uv,uv)*.42,0.,1.),c.a);
+    }`,
+}));
+
+// ── Monochrome brightness by node type ────────────────────────────
+function nodeBrightness(n) {
+  if (n.nodeType === 'global-instruction') return 1.0;
+  if (n.nodeType === 'settings')           return 0.95;
+  if (n.nodeType === 'project-hub')        return 0.88;
+  if (n.nodeType === 'memory-index')       return 0.82;
+  if (n.nodeType === 'memory')             return 0.72;
+  if (n.nodeType === 'plan')               return 0.68;
+  if (n.nodeType === 'project-file')       return 0.65;
+  if (n.nodeType === 'mcp-tool')           return 0.58;
+  if (n.nodeType === 'plugin')             return 0.62;
+  if (n.nodeType === 'todo')               return 0.55;
+  if (n.nodeType === 'conversation')       return 0.28;
+  return 0.5;
+}
+function nodeColor(n) {
+  const b = nodeBrightness(n);
+  return new THREE.Color(b, b, b);
+}
+
+// ── Brain volume ───────────────────────────────────────────────────
+const HX=38, RX=162, RY=118, RZ=140;
+function inBrain(x,y,z) {
+  if (y>118||y<-108) return false;
+  const tp = y<-42 ? Math.max(0.28,1-(-y-42)/80*0.65) : 1;
+  const d1 = ((x+HX)/(RX*tp))**2+(y/RY)**2+(z/(RZ*tp))**2;
+  const d2 = ((x-HX)/(RX*tp))**2+(y/RY)**2+(z/(RZ*tp))**2;
+  return Math.min(d1,d2)<=1;
+}
+function clamp(x,y,z) {
+  if (inBrain(x,y,z)) return [x,y,z];
+  let s=0.9; while (!inBrain(x*s,y*s,z*s)&&s>0.05) s-=0.04;
+  return [x*s,y*s,z*s];
+}
+
+// ── Node sizing ────────────────────────────────────────────────────
+function neuronR(n) {
+  if (n.nodeType==='global-instruction') return 8;
+  if (n.nodeType==='settings')           return 6.5;
+  if (n.nodeType==='project-hub')        return 5.5+Math.min(n.connections||0,12)*.12;
+  if (n.nodeType==='memory-index')       return 4;
+  if (n.nodeType==='memory')             return 3;
+  if (n.nodeType==='plan')               return 2.6;
+  if (n.nodeType==='project-file')       return 2.4;
+  if (n.nodeType==='mcp-tool')           return 2.1;
+  if (n.nodeType==='plugin')             return 2.5;
+  if (n.nodeType==='todo')               return 1.9;
+  if (n.nodeType==='conversation')       return 1.4;
+  return 1.8;
+}
+
+// ── Node layout inside brain ───────────────────────────────────────
+const GOLDEN = 2.399963229;
+const nodeMap = {};
+nodes.forEach(n => { nodeMap[n.id]=n; });
+
+// count connections
+edges.forEach(e => {
+  if (nodeMap[e.source]) nodeMap[e.source].connections = (nodeMap[e.source].connections||0)+1;
+  if (nodeMap[e.target]) nodeMap[e.target].connections = (nodeMap[e.target].connections||0)+1;
+});
+
+const hubNs       = nodes.filter(n=>n.nodeType==='project-hub');
+const convNs      = nodes.filter(n=>n.nodeType==='conversation');
+const globalNs    = nodes.filter(n=>n.project==='__global__'&&n.nodeType!=='plan'&&n.nodeType!=='todo'&&n.nodeType!=='plugin');
+const planNs      = nodes.filter(n=>n.nodeType==='plan');
+const pluginNs    = nodes.filter(n=>n.nodeType==='plugin');
+const todoNs      = nodes.filter(n=>n.nodeType==='todo');
+
+function fibPlace(arr, cx, cy, cz, r, ry, phase) {
+  const N=arr.length;
+  arr.forEach((n,i)=>{
+    const t=(i+.5)/Math.max(N,1);
+    const inc=Math.acos(1-2*t), az=phase+i*GOLDEN;
+    const rr=r*(0.82+(i%3)*.12);
+    ;[n.bx,n.by,n.bz]=clamp(cx+Math.sin(inc)*Math.cos(az)*rr, cy+Math.cos(inc)*ry, cz+Math.sin(inc)*Math.sin(az)*rr);
+  });
+}
+
+// Cluster layout (default)
+function computeClusterLayout() {
+  // Core
+  globalNs.forEach((n,i)=>{ const a=i*GOLDEN; [n.bx,n.by,n.bz]=clamp(Math.cos(a)*12,-18+i*8,Math.sin(a)*12); });
+  fibPlace(planNs,   0, 25, 50, 70, 46, 0);
+  fibPlace(pluginNs, 0, 8, -20, 46, 30, Math.PI);
+  fibPlace(todoNs,   0, 12,  0, 88, 58, GOLDEN*4);
+
+  // Hubs on cortical sphere
+  const N_HUBS=hubNs.length;
+  hubNs.forEach((hub,hi)=>{
+    const t=(hi+.5)/Math.max(N_HUBS,1);
+    const inc=Math.acos(1-2*t), az=hi*GOLDEN;
+    ;[hub.bx,hub.by,hub.bz]=clamp(Math.sin(inc)*Math.cos(az)*95,Math.cos(inc)*74,Math.sin(inc)*Math.sin(az)*93);
+
+    // Structural children near hub
+    const children=nodes.filter(n=>n.project===hub.project&&
+      (n.nodeType==='memory'||n.nodeType==='memory-index'||n.nodeType==='project-file'||n.nodeType==='mcp-tool'));
+    children.forEach((c,ci)=>{
+      const ct=(ci+.5)/Math.max(children.length,1);
+      const cinc=Math.acos(1-2*ct), caz=az+ci*GOLDEN, dr=34+(ci%3)*8;
+      ;[c.bx,c.by,c.bz]=clamp(hub.bx+Math.sin(cinc)*Math.cos(caz)*dr, hub.by+Math.cos(cinc)*dr*.5, hub.bz+Math.sin(cinc)*Math.sin(caz)*dr);
+    });
+
+    // Conversations: 3D sphere around hub — fixed flat Y by using 0.9 multiplier
+    const hubConvs=convNs.filter(c=>c.project===hub.project);
+    hubConvs.forEach((c,ci)=>{
+      const ct=(ci+.5)/Math.max(hubConvs.length,1);
+      const cinc=Math.acos(1-2*ct), caz=az+ci*GOLDEN*(1+hi*.1);
+      const dr=50+(ci%5)*8;
+      ;[c.bx,c.by,c.bz]=clamp(hub.bx+Math.sin(cinc)*Math.cos(caz)*dr, hub.by+Math.cos(cinc)*dr*0.9, hub.bz+Math.sin(cinc)*Math.sin(caz)*dr);
+    });
+  });
+
+  // Orphan fallback
+  nodes.forEach((n,ni)=>{
+    if (n.bx!==undefined) return;
+    const t=(ni+.5)/nodes.length, inc=Math.acos(1-2*t), az=ni*GOLDEN;
+    ;[n.bx,n.by,n.bz]=clamp(Math.sin(inc)*Math.cos(az)*75,Math.cos(inc)*55,Math.sin(inc)*Math.sin(az)*75);
+  });
+}
+
+// Timeline layout
+function computeTimelineLayout() {
+  let minTime=Infinity, maxTime=-Infinity;
+  nodes.forEach(n=>{
+    const ts=n.startedAt||n.modifiedAt;
+    if (ts){ const t=new Date(ts).getTime(); if(t<minTime)minTime=t; if(t>maxTime)maxTime=t; }
+  });
+  const projects={};
+  nodes.forEach(n=>{ if(!projects[n.project])projects[n.project]=[]; projects[n.project].push(n); });
+  const projKeys=Object.keys(projects).sort();
+  const timeRange=maxTime-minTime||1;
+
+  projKeys.forEach((proj,pi)=>{
+    const bandZ=(pi-projKeys.length/2)*55;
+    projects[proj].forEach(n=>{
+      const ts=n.startedAt||n.modifiedAt;
+      const t=ts?new Date(ts).getTime():(minTime+maxTime)/2;
+      const x=((t-minTime)/timeRange-0.5)*260;
+      const y=(Math.random()-.5)*18;
+      ;[n.bx,n.by,n.bz]=clamp(x,y,bandZ+(Math.random()-.5)*22);
+    });
+  });
+}
+
+computeClusterLayout();
+
+// ── Tissue particles (monochrome: subtle grey cloud) ───────────────
+function makeGlowTex(size) {
+  const c=document.createElement('canvas'); c.width=c.height=size;
+  const ctx=c.getContext('2d'), h=size/2;
+  const g=ctx.createRadialGradient(h,h,0,h,h,h);
+  g.addColorStop(0,  'rgba(255,255,255,1)');
+  g.addColorStop(0.2,'rgba(255,255,255,0.8)');
+  g.addColorStop(0.5,'rgba(255,255,255,0.25)');
+  g.addColorStop(1,  'rgba(255,255,255,0)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,size,size);
+  return new THREE.CanvasTexture(c);
+}
+const GLOW_TEX = makeGlowTex(64);
+
+const N_TISSUE = 22000;
+const tPos=new Float32Array(N_TISSUE*3), tPh=new Float32Array(N_TISSUE), tSz=new Float32Array(N_TISSUE);
+let pi=0,att=0;
+while (pi<N_TISSUE&&att<N_TISSUE*14) {
+  att++;
+  const x=(Math.random()-.5)*(RX*2.3), y=(Math.random()-.5)*(RY*2.3), z=(Math.random()-.5)*(RZ*2.3);
+  if (!inBrain(x,y,z)) continue;
+  tPos[pi*3]=x; tPos[pi*3+1]=y; tPos[pi*3+2]=z;
+  tPh[pi]=Math.random()*Math.PI*2;
+  tSz[pi]=2+Math.random()*3.5;
+  pi++;
+}
+const ACTUAL=pi;
+const tGeo=new THREE.BufferGeometry();
+tGeo.setAttribute('position',new THREE.BufferAttribute(tPos.slice(0,ACTUAL*3),3));
+tGeo.setAttribute('aPhase',  new THREE.BufferAttribute(tPh.slice(0,ACTUAL),1));
+tGeo.setAttribute('aSize',   new THREE.BufferAttribute(tSz.slice(0,ACTUAL),1));
+
+const tMat=new THREE.ShaderMaterial({
+  transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
+  uniforms:{ uTime:{value:0}, uBreath:{value:1}, uPR:{value:renderer.getPixelRatio()}, uTex:{value:GLOW_TEX} },
+  vertexShader:`
+    attribute float aPhase, aSize;
+    uniform float uTime, uBreath, uPR;
+    varying float vA;
+    void main(){
+      vec3 p=position*uBreath;
+      vec4 mv=modelViewMatrix*vec4(p,1.);
+      float pulse=pow(sin(uTime*1.8+aPhase)*.5+.5, 2.5);
+      gl_PointSize=(aSize*(.6+pulse*.8))*uPR*(280./(-mv.z));
+      gl_Position=projectionMatrix*mv;
+      vA=0.045+pulse*0.12;
+    }`,
+  fragmentShader:`
+    uniform sampler2D uTex; varying float vA;
+    void main(){
+      float a=texture2D(uTex,gl_PointCoord).r;
+      if(a<0.01) discard;
+      gl_FragColor=vec4(vec3(.92,.92,.92),vA*a);
+    }`,
+});
+scene.add(new THREE.Points(tGeo,tMat));
+
+// ── Neuron meshes ──────────────────────────────────────────────────
+const neuronGroup  = new THREE.Group();
+const neuronMeshes = {};
+const geoCache     = {};
+function sphereGeo(r){ const k=r.toFixed(1); if(!geoCache[k]) geoCache[k]=new THREE.SphereGeometry(r,10,8); return geoCache[k]; }
+
+nodes.forEach(n=>{
+  const col = nodeColor(n);
+  const r   = neuronR(n);
+  const isHub  = n.nodeType==='project-hub';
+  const isGlob = n.nodeType==='global-instruction'||n.nodeType==='settings';
+  const isConv = n.nodeType==='conversation';
+  const ei  = isGlob?2.8:isHub?2.0:isConv?0.6:1.2;
+
+  const mat=new THREE.MeshStandardMaterial({
+    color:            col.clone().multiplyScalar(0.12),
+    emissive:         col,
+    emissiveIntensity:ei,
+    transparent:true, opacity: isConv?0.55:0.9,
+    roughness:0.5, metalness:0.0,
+  });
+  const mesh=new THREE.Mesh(sphereGeo(r),mat);
+  mesh.position.set(n.bx,n.by,n.bz);
+  mesh.userData.node=n;
+  neuronGroup.add(mesh);
+  neuronMeshes[n.id]=mesh;
+  n._mesh=mesh; n._baseEmit=ei;
+});
+scene.add(neuronGroup);
+
+// Dendrite stubs on hub nodes
+hubNs.forEach((hub,hi)=>{
+  const s=neuronR(hub);
+  for (let i=0;i<6;i++) {
+    const t=(i+.5)/6, inc=Math.acos(1-2*t), az=hi*GOLDEN+i*GOLDEN;
+    const len=s*(2.5+Math.random()*2);
+    const dx=Math.sin(inc)*Math.cos(az), dy=Math.cos(inc)*.55, dz=Math.sin(inc)*Math.sin(az);
+    const pts=[new THREE.Vector3(0,0,0),new THREE.Vector3(dx*len*.45,dy*len*.45,dz*len*.45),new THREE.Vector3(dx*len,dy*len,dz*len)];
+    neuronMeshes[hub.id].add(new THREE.Mesh(
+      new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),5,.1,4,false),
+      new THREE.MeshBasicMaterial({color:new THREE.Color(.7,.7,.7),transparent:true,opacity:.25,blending:THREE.AdditiveBlending,depthWrite:false})
+    ));
+  }
+});
+
+// ── Synaptic edges ─────────────────────────────────────────────────
+const drawEdges = edges.filter(e=>{
+  const a=nodeMap[e.source],b=nodeMap[e.target];
+  return a&&b&&a.bx!==undefined&&b.bx!==undefined&&(e.weight||0)>=0.2;
+});
+
+const ePosArr=new Float32Array(drawEdges.length*6);
+const eColArr=new Float32Array(drawEdges.length*6);
+drawEdges.forEach((e,i)=>{
+  const a=nodeMap[e.source],b=nodeMap[e.target];
+  ePosArr.set([a.bx,a.by,a.bz,b.bx,b.by,b.bz],i*6);
+  const isConvEdge = a.nodeType==='conversation'||b.nodeType==='conversation';
+  const w = isConvEdge
+    ? (e.weight||.2)*0.06
+    : Math.min((e.weight||.3)*0.22, 0.2);
+  eColArr.set([w,w,w,w,w,w],i*6);
+});
+const eGeo=new THREE.BufferGeometry();
+eGeo.setAttribute('position',new THREE.BufferAttribute(ePosArr,3));
+eGeo.setAttribute('color',   new THREE.BufferAttribute(eColArr,3));
+scene.add(new THREE.LineSegments(eGeo,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:0.8,blending:THREE.AdditiveBlending,depthWrite:false})));
+
+// ── Action potentials (white impulses) ─────────────────────────────
+const AP_POOL   = [];
+const AP_EDGES  = drawEdges.filter(e=>(e.weight||0)>=0.5&&nodeMap[e.source]?.nodeType!=='conversation'&&nodeMap[e.target]?.nodeType!=='conversation');
+const AP_GEO    = new THREE.SphereGeometry(0.9,5,4);
+const AP_MAT    = new THREE.MeshBasicMaterial({color:new THREE.Color(1,1,1),transparent:true,opacity:0.9,blending:THREE.AdditiveBlending,depthWrite:false});
+let lastAP=0;
+
+function fireAP() {
+  if (AP_POOL.length>=30||!AP_EDGES.length) return;
+  const e=AP_EDGES[Math.floor(Math.random()*AP_EDGES.length)];
+  const src=nodeMap[e.source],tgt=nodeMap[e.target];
+  if (!src||!tgt) return;
+  const m=new THREE.Mesh(AP_GEO,AP_MAT.clone());
+  scene.add(m);
+  AP_POOL.push({m,src,tgt,t:0,speed:.005+Math.random()*.007});
+}
+
+// ── Lights ────────────────────────────────────────────────────────
+scene.add(new THREE.AmbientLight(0x111111,0.8));
+const pl=new THREE.PointLight(0xffffff,0.5,600); pl.position.set(0,0,0); scene.add(pl);
+
+// ── Filter State ──────────────────────────────────────────────────
+let activeFilter  = 'all';
+let searchQuery   = '';
+let showConvs     = false;
+let activeCategory= 'all';
+let activeThread  = '';
+let activeStatus  = 'all';
+let layoutMode    = 'cluster';
+
+// Conversations hidden by default
+nodes.forEach(n => { if (n.nodeType === 'conversation') n._hidden = true; });
+
+// Shared edge color buffer
+const eColBuf = eGeo.attributes.color;
+
+function applyFilters() {
+  const q = searchQuery.toLowerCase();
+
+  nodes.forEach(n => {
+    const mesh = neuronMeshes[n.id];
+    if (!mesh) return;
+
+    let vis = true;
+
+    // Conversation gating
+    if (n._hidden && activeFilter !== 'all' && activeFilter !== 'conversation') vis = false;
+
+    // Type filter
+    if (vis && activeFilter !== 'all') {
+      if (activeFilter === 'conversation') {
+        vis = n.nodeType === 'conversation';
+      } else if (activeFilter === '__global__') {
+        vis = n.project === '__global__';
+      } else if (['project-hub','settings','global-instruction','memory-index','project-file','plan','mcp-tool','plugin','todo'].includes(activeFilter)) {
+        vis = n.nodeType === activeFilter;
+      } else {
+        vis = n.type === activeFilter;
+      }
+    }
+
+    // Category filter
+    if (vis && activeCategory !== 'all') {
+      vis = n.category === activeCategory;
+    }
+
+    // Thread filter
+    if (vis && activeThread) {
+      vis = n.threadId === activeThread;
+    }
+
+    // Status filter
+    if (vis && activeStatus !== 'all') {
+      vis = (n.status || 'active') === activeStatus;
+    }
+
+    // Search
+    if (vis && q) {
+      const haystack = ((n.name||'') + ' ' + (n.description||'') + ' ' + (n.body||'')).toLowerCase();
+      vis = haystack.includes(q);
+    }
+
+    mesh.visible = vis;
+    n._vis = vis;
+  });
+
+  // Rebuild edge colors
+  drawEdges.forEach((e, i) => {
+    const a = nodeMap[e.source], b = nodeMap[e.target];
+    const aVis = a?._vis !== false;
+    const bVis = b?._vis !== false;
+    if (!aVis || !bVis) {
+      eColBuf.setXYZ(i*2,   0, 0, 0);
+      eColBuf.setXYZ(i*2+1, 0, 0, 0);
+    } else {
+      const isConvEdge = a?.nodeType==='conversation' || b?.nodeType==='conversation';
+      const w = isConvEdge ? (e.weight||.2)*0.06 : Math.min((e.weight||.3)*0.22, 0.2);
+      eColBuf.setXYZ(i*2,   w, w, w);
+      eColBuf.setXYZ(i*2+1, w, w, w);
+    }
+  });
+  eColBuf.needsUpdate = true;
+
+  updateStats();
+}
+
+function updateStats() {
+  const vis = nodes.filter(n => n._vis !== false);
+  const mems = vis.filter(n => n.nodeType !== 'conversation').length;
+  const convs = vis.filter(n => n.nodeType === 'conversation').length;
+  const edges_vis = drawEdges.filter(e => nodeMap[e.source]?._vis !== false && nodeMap[e.target]?._vis !== false).length;
+  document.getElementById('stats-brain').innerHTML =
+    `<span>${mems}</span> nodes · <span>${convs}</span> sessions · <span>${edges_vis}</span> synapses`;
+}
+
+// Wire filter buttons
+document.querySelectorAll('.fbtn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.fbtn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = btn.dataset.type;
+    applyFilters();
+  });
+});
+
+// Search
+document.getElementById('search-brain').addEventListener('input', e => {
+  searchQuery = e.target.value;
+  applyFilters();
+});
+
+// Conversation toggle
+const convToggleBtn = document.getElementById('conv-toggle-brain');
+convToggleBtn.addEventListener('click', () => {
+  showConvs = !showConvs;
+  convToggleBtn.textContent = showConvs ? 'Hide chatlogs' : 'Show chatlogs';
+  convToggleBtn.classList.toggle('active', showConvs);
+  nodes.forEach(n => { if (n.nodeType === 'conversation') n._hidden = !showConvs; });
+  applyFilters();
+});
+
+// Category bar
+function buildCategoryBar() {
+  const cats = new Set();
+  nodes.forEach(n => { if (n.category) cats.add(n.category); });
+  const bar = document.getElementById('cat-bar-brain');
+  cats.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'cbtn';
+    btn.dataset.cat = cat;
+    btn.textContent = cat;
+    bar.appendChild(btn);
+  });
+}
+buildCategoryBar();
+
+document.getElementById('cat-bar-brain').addEventListener('click', e => {
+  const btn = e.target.closest('.cbtn');
+  if (!btn) return;
+  document.querySelectorAll('.cbtn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  activeCategory = btn.dataset.cat;
+  applyFilters();
+});
+
+// Thread select
+function buildThreadSelect() {
+  const threads = new Set();
+  nodes.forEach(n => { if (n.threadId) threads.add(n.threadId); });
+  const sel = document.getElementById('thread-select-brain');
+  threads.forEach(tid => {
+    const opt = document.createElement('option');
+    opt.value = tid; opt.textContent = tid;
+    sel.appendChild(opt);
+  });
+}
+buildThreadSelect();
+
+document.getElementById('thread-select-brain').addEventListener('change', e => {
+  activeThread = e.target.value;
+  applyFilters();
+});
+
+// Status bar
+document.querySelectorAll('.sbtn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.sbtn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeStatus = btn.dataset.status;
+    applyFilters();
+  });
+});
+
+// Layout toggle
+const layoutBtn = document.getElementById('layout-toggle-brain');
+layoutBtn.addEventListener('click', () => {
+  layoutMode = layoutMode === 'cluster' ? 'timeline' : 'cluster';
+  layoutBtn.textContent = layoutMode === 'cluster' ? 'Cluster' : 'Timeline';
+  layoutBtn.classList.toggle('active', layoutMode === 'timeline');
+
+  if (layoutMode === 'timeline') {
+    computeTimelineLayout();
+  } else {
+    computeClusterLayout();
+  }
+
+  // Apply new positions to meshes
+  nodes.forEach(n => {
+    const mesh = neuronMeshes[n.id];
+    if (mesh && n.bx !== undefined) mesh.position.set(n.bx, n.by, n.bz);
+  });
+
+  // Rebuild edge positions
+  drawEdges.forEach((e,i) => {
+    const a=nodeMap[e.source], b=nodeMap[e.target];
+    if (a&&b) {
+      ePosArr.set([a.bx,a.by,a.bz,b.bx,b.by,b.bz],i*6);
+    }
+  });
+  eGeo.attributes.position.needsUpdate = true;
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.target.tagName==='INPUT'||e.target.tagName==='SELECT') return;
+  if (e.key==='a'||e.key==='A') toggleAnalytics();
+  if (e.key==='t'||e.key==='T') layoutBtn.click();
+  if (e.key==='Escape') { closePanel(); closeAnalytics(); }
+});
+
+// ── Detail panel ──────────────────────────────────────────────────
+const panelEl   = document.getElementById('panel');
+const panelClose= document.getElementById('panel-close');
+let selectedNode = null;
+
+panelClose.addEventListener('click', closePanel);
+
+function closePanel() {
+  panelEl.classList.remove('open');
+  if (selectedNode) {
+    selectedNode._mesh.material.emissiveIntensity = selectedNode._baseEmit;
+    selectedNode = null;
+  }
+}
+
+function openPanel(n) {
+  if (selectedNode) selectedNode._mesh.material.emissiveIntensity = selectedNode._baseEmit;
+  selectedNode = n;
+  n._mesh.material.emissiveIntensity = n._baseEmit * 3;
+
+  const typeLabel = (n.nodeType||n.type||'').toUpperCase().replace(/-/g,' ');
+  document.getElementById('panel-type').textContent = typeLabel;
+  document.getElementById('panel-name').textContent = n.name || n.id;
+  document.getElementById('panel-proj').textContent = cleanProject(n.project);
+  document.getElementById('panel-desc').textContent = n.description || '';
+
+  const content = document.getElementById('panel-content');
+  content.innerHTML = '';
+
+  // ── Type-specific stats ──
+  const stats = [];
+
+  if (n.nodeType === 'project-hub') {
+    const members = nodes.filter(x=>x.project===n.project&&x.nodeType!=='project-hub');
+    const convCount = members.filter(x=>x.nodeType==='conversation').length;
+    const memCount  = members.filter(x=>x.nodeType==='memory').length;
+    stats.push(['Project', cleanProject(n.project)]);
+    stats.push(['Sessions', convCount]);
+    stats.push(['Memories', memCount]);
+    stats.push(['Files', members.filter(x=>x.nodeType==='project-file').length]);
+    stats.push(['Tools', members.filter(x=>x.nodeType==='mcp-tool').length]);
+
+  } else if (n.nodeType === 'conversation') {
+    if (n.startedAt) stats.push(['Started', new Date(n.startedAt).toLocaleString()]);
+    if (n.endedAt)   stats.push(['Ended',   new Date(n.endedAt).toLocaleString()]);
+    if (n.messageCount) stats.push(['Messages', n.messageCount]);
+    if (n.category)  stats.push(['Category', n.category]);
+    if (n.gitBranch) stats.push(['Branch', n.gitBranch]);
+    if (n.toolsUsed?.length) stats.push(['Tools', n.toolsUsed.slice(0,5).join(', ')]);
+    if (n.cwd) stats.push(['CWD', n.cwd.replace(/^\/Users\/[^/]+\//,'~/')]);
+
+  } else if (n.nodeType === 'mcp-tool') {
+    if (n.command) stats.push(['Command', n.command]);
+    if (n.args?.length) stats.push(['Args', n.args.join(' ')]);
+    if (n.cwd) stats.push(['Project', n.cwd.replace(/^\/Users\/[^/]+\//,'~/')]);
+    if (n.env && Object.keys(n.env).length) stats.push(['Env', Object.keys(n.env).join(', ')]);
+
+  } else if (n.nodeType === 'plugin') {
+    stats.push(['Plugin ID', n.pluginId || n.name || '—']);
+    stats.push(['Version', n.version || '?']);
+    stats.push(['Scope', n.scope || 'user']);
+    if (n.installedAt) stats.push(['Installed', new Date(n.installedAt).toLocaleDateString()]);
+
+  } else {
+    if (n.modifiedAt) stats.push(['Modified', new Date(n.modifiedAt).toLocaleDateString()]);
+    if (n.file)       stats.push(['File', n.file.split('/').slice(-2).join('/')]);
+    if (n.version)    stats.push(['Version', n.version]);
+    if (n.scope)      stats.push(['Scope', n.scope]);
+    if (n.status)     stats.push(['Status', n.status]);
+  }
+
+  if (stats.length) {
+    const sec=document.createElement('div'); sec.className='panel-section';
+    sec.innerHTML='<div class="panel-label">Details</div>'+
+      stats.map(([k,v])=>`<div class="panel-stat"><span class="k">${k}</span><span class="v">${escHtml(String(v).slice(0,60))}</span></div>`).join('');
+    content.appendChild(sec);
+  }
+
+  // ── Type-specific rich content ──
+  if (n.nodeType === 'todo' && n.items) {
+    const sec=document.createElement('div'); sec.className='panel-section';
+    sec.innerHTML='<div class="panel-label">Todo Items</div>'+
+      (n.items.map(item=>{
+        const icon = item.status==='completed'?'✓':item.status==='in_progress'?'◎':'○';
+        const col  = item.status==='completed'?'rgba(255,255,255,0.55)':item.status==='in_progress'?'rgba(255,255,255,0.7)':'rgba(255,255,255,0.3)';
+        return `<div class="todo-item"><span style="color:${col};flex-shrink:0">${icon}</span><span style="color:rgba(255,255,255,0.45)">${escHtml(item.content||'')}</span></div>`;
+      }).join('')||'<div style="font-size:9px;color:rgba(255,255,255,0.2)">No items</div>');
+    content.appendChild(sec);
+
+  } else if (n.nodeType === 'plan' && n.sections) {
+    const sec=document.createElement('div'); sec.className='panel-section';
+    sec.innerHTML='<div class="panel-label">Sections</div>'+
+      n.sections.map(s=>`<div style="font-size:9px;color:rgba(255,255,255,0.55);padding:2px 0">§ ${escHtml(s)}</div>`).join('');
+    content.appendChild(sec);
+  }
+
+  if (n.nodeType === 'settings' && n.body) {
+    const sec=document.createElement('div'); sec.className='panel-section';
+    let bodyHtml = '';
+    try {
+      const parsed=JSON.parse(n.body);
+      if (parsed.enabledPlugins) {
+        bodyHtml += '<div style="font-size:8px;color:rgba(255,255,255,0.3);margin-bottom:3px">Enabled plugins:</div>';
+        Object.keys(parsed.enabledPlugins).forEach(p=>{ bodyHtml+=`<div style="font-size:9px;color:rgba(255,255,255,0.5);padding:1px 0">▸ ${escHtml(p)}</div>`; });
+      }
+      if (parsed.skipDangerousModePermissionPrompt) bodyHtml+='<div style="font-size:9px;color:rgba(255,100,50,0.8);margin-top:4px">⚠ Dangerous mode enabled</div>';
+    } catch(_) { bodyHtml=`<div class="panel-body">${escHtml((n.body||'').slice(0,400))}</div>`; }
+    sec.innerHTML='<div class="panel-label">Configuration</div>'+bodyHtml;
+    content.appendChild(sec);
+
+  } else if (n.nodeType !== 'conversation' && n.nodeType !== 'todo' && n.body) {
+    const sec=document.createElement('div'); sec.className='panel-section';
+    sec.innerHTML=`<div class="panel-label">Content</div><div class="panel-body">${escHtml(n.body.slice(0,800))}${n.body.length>800?'\n…':''}</div>`;
+    content.appendChild(sec);
+  }
+
+  // For conversations: load messages from API
+  if (n.nodeType === 'conversation') {
+    const sec=document.createElement('div'); sec.className='panel-section';
+    sec.innerHTML='<div class="panel-label">Messages</div><div id="panel-msgs" style="font-size:9px;color:rgba(255,255,255,.2)">Loading…</div>';
+    content.appendChild(sec);
+    fetch(`/api/detail?id=${encodeURIComponent(n.sessionId||n.id)}`)
+      .then(r=>r.json()).then(data=>{
+        const msgs=data.messages||[];
+        const el=document.getElementById('panel-msgs');
+        if (!el) return;
+        if (!msgs.length){ el.textContent='No messages found.'; return; }
+
+        // Header summary
+        const userMsgs=msgs.filter(m=>m.role==='user');
+        const asstMsgs=msgs.filter(m=>m.role==='assistant');
+        let html=`<div style="font-size:8px;color:rgba(255,255,255,0.2);margin-bottom:6px">${userMsgs.length} prompts · ${asstMsgs.length} responses</div>`;
+
+        // Summary / first message preview
+        if (data.summary) {
+          html+=`<div style="font-size:9px;color:rgba(255,255,255,0.4);line-height:1.6;border-left:1px solid rgba(255,255,255,0.1);padding-left:8px;margin-bottom:8px">${escHtml(data.summary.slice(0,200))}</div>`;
+        }
+
+        msgs.slice(0,20).forEach(m=>{
+          const role=m.role==='user'?'You':'Claude';
+          const text=(m.content||'').slice(0,140);
+          const cls=m.role==='user'?'user':'assistant';
+          html+=`<div class="msg-entry ${cls}"><span class="role">${role}</span> ${escHtml(text)}${(m.content||'').length>140?'…':''}</div>`;
+        });
+        if (msgs.length>20) html+=`<div class="msg-entry" style="color:rgba(255,255,255,.12)">+ ${msgs.length-20} more messages</div>`;
+        el.innerHTML=html;
+      }).catch(()=>{ const el=document.getElementById('panel-msgs'); if(el) el.textContent='—'; });
+  }
+
+  // Connected neurons
+  const connIds = edges.filter(e=>e.source===n.id||e.target===n.id)
+    .map(e=>e.source===n.id?e.target:e.source)
+    .filter(id=>{ const x=nodeMap[id]; return x&&x.nodeType!=='conversation'; })
+    .slice(0,8);
+  if (connIds.length) {
+    const sec=document.createElement('div'); sec.className='panel-section';
+    sec.innerHTML='<div class="panel-label">Connected</div>'+
+      connIds.map(id=>{ const x=nodeMap[id]; return `<div class="panel-stat"><span class="k">${(x.nodeType||'').replace('-',' ')}</span><span class="v">${escHtml(x.name||id)}</span></div>`; }).join('');
+    content.appendChild(sec);
+  }
+
+  panelEl.classList.add('open');
+}
+
+// ── Tooltip ───────────────────────────────────────────────────────
+const tooltipEl = document.getElementById('tooltip-brain');
+
+function showTooltip(n, x, y) {
+  tooltipEl.querySelector('.tt-name').textContent = n.name || n.id;
+  tooltipEl.querySelector('.tt-type').textContent = (n.nodeType||'').toUpperCase().replace(/-/g,' ');
+  tooltipEl.querySelector('.tt-proj').textContent = cleanProject(n.project);
+  tooltipEl.style.display = 'block';
+  const tx = Math.min(x+14, window.innerWidth-300);
+  const ty = Math.min(y-10, window.innerHeight-80);
+  tooltipEl.style.left = tx + 'px';
+  tooltipEl.style.top  = ty + 'px';
+}
+
+function hideTooltip() {
+  tooltipEl.style.display = 'none';
+}
+
+// ── Raycasting ────────────────────────────────────────────────────
+const ray   = new THREE.Raycaster();
+const mouse = new THREE.Vector2(-9,-9);
+let hoveredNode = null;
+let mouseScreen = {x:0, y:0};
+
+window.addEventListener('mousemove', e=>{
+  mouse.x = (e.clientX/W)*2-1;
+  mouse.y = -(e.clientY/H)*2+1;
+  mouseScreen = {x:e.clientX, y:e.clientY};
+  renderer.domElement.style.cursor = 'default';
+});
+
+window.addEventListener('click', e=>{
+  if (e.target.closest('#panel') || e.target.closest('#topbar') || e.target.closest('#filter-row-2-brain') || e.target.closest('#analytics-brain')) return;
+  ray.setFromCamera(mouse, camera);
+  const hits=ray.intersectObjects(neuronGroup.children.filter(m=>m.visible), false);
+  if (hits.length) {
+    const nd=hits[0].object.userData.node;
+    if (nd) { openPanel(nd); controls.autoRotate=false; }
+  } else if (!e.target.closest('#panel')) {
+    closePanel();
+  }
+});
+
+// ── Analytics ─────────────────────────────────────────────────────
+let analyticsOpen = false;
+
+function toggleAnalytics() {
+  analyticsOpen = !analyticsOpen;
+  document.getElementById('analytics-brain').classList.toggle('open', analyticsOpen);
+  document.getElementById('analytics-toggle-brain').classList.toggle('active', analyticsOpen);
+  if (analyticsOpen) renderAnalytics();
+}
+
+function closeAnalytics() {
+  analyticsOpen = false;
+  document.getElementById('analytics-brain').classList.remove('open');
+  document.getElementById('analytics-toggle-brain').classList.remove('active');
+}
+
+document.getElementById('analytics-toggle-brain').addEventListener('click', toggleAnalytics);
+
+const chartTooltipEl = document.getElementById('chart-tooltip-brain');
+
+function showChartTip(e, html) {
+  chartTooltipEl.innerHTML = html;
+  chartTooltipEl.style.display = 'block';
+  chartTooltipEl.style.left = Math.min(e.clientX+10, window.innerWidth-210)+'px';
+  chartTooltipEl.style.top  = Math.min(e.clientY-8,  window.innerHeight-50)+'px';
+}
+function hideChartTip() { chartTooltipEl.style.display='none'; }
+
+function drawBarChart(canvasId, entries, colorFn, maxH) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || !entries.length) return;
+  const dpr = window.devicePixelRatio||1;
+  const w = canvas.offsetWidth || canvas.parentElement.offsetWidth || 320;
+  canvas.width  = w * dpr;
+  canvas.height = maxH * dpr;
+  canvas.style.width  = w + 'px';
+  canvas.style.height = maxH + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const barH = Math.floor(maxH / entries.length);
+  const labelW = 100;
+  const countW = 28;
+  const barW = w - labelW - countW - 4;
+  const maxVal = Math.max(...entries.map(e=>e[1]), 1);
+
+  ctx.font = '9px SF Mono, Fira Code, monospace';
+  entries.forEach(([label, val], i) => {
+    const y = i * barH;
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    const shortLabel = label.length>14 ? label.slice(0,6)+'…'+label.slice(-5) : label;
+    ctx.fillText(shortLabel, labelW-4, y + barH/2);
+
+    const bw = (val/maxVal)*barW;
+    ctx.fillStyle = typeof colorFn==='function' ? colorFn(label) : (colorFn || 'rgba(255,255,255,0.25)');
+    ctx.fillRect(labelW, y+2, bw, barH-4);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.textAlign = 'left';
+    ctx.fillText(val, labelW+bw+4, y+barH/2);
+  });
+
+  // Hit regions for tooltip
+  canvas._hitRegions = entries.map(([label,val],i)=>({y:i*barH,h:barH,label,val}));
+  if (!canvas._listenersAttached) {
+    canvas._listenersAttached = true;
+    canvas.addEventListener('mousemove', function(e) {
+      const rect=canvas.getBoundingClientRect();
+      const my=e.clientY-rect.top;
+      const hit=(canvas._hitRegions||[]).find(r=>my>=r.y&&my<r.y+r.h);
+      if (hit) {
+        canvas.style.cursor='pointer';
+        showChartTip(e, `<strong style="color:#fff">${hit.label}</strong>: ${hit.val}`);
+      } else {
+        canvas.style.cursor='default';
+        hideChartTip();
+      }
+    });
+    canvas.addEventListener('mouseleave', hideChartTip);
+  }
+}
+
+function drawTimelineChart(canvasId, weeklyData, maxH) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio||1;
+  const w = canvas.offsetWidth || canvas.parentElement.offsetWidth || 320;
+  canvas.width  = w * dpr;
+  canvas.height = maxH * dpr;
+  canvas.style.width  = w + 'px';
+  canvas.style.height = maxH + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const weeks = Object.keys(weeklyData).sort();
+  if (!weeks.length) return;
+  const maxVal = Math.max(...Object.values(weeklyData), 1);
+  const bw = w / weeks.length;
+
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  weeks.forEach((wk, i) => {
+    const val = weeklyData[wk];
+    const bh = (val/maxVal) * (maxH - 14);
+    ctx.fillRect(i*bw+1, maxH-14-bh, bw-2, bh);
+  });
+
+  // x-axis labels (every 4th)
+  ctx.fillStyle='rgba(255,255,255,0.2)'; ctx.font='8px monospace'; ctx.textAlign='center';
+  weeks.forEach((wk,i)=>{
+    if (i%4===0) ctx.fillText(wk.slice(5), i*bw+bw/2, maxH-2);
+  });
+}
+
+function renderAnalytics() {
+  const convs = nodes.filter(n=>n.nodeType==='conversation');
+  const mems  = nodes.filter(n=>['user','feedback','project','reference'].includes(n.type));
+
+  // KPIs
+  document.getElementById('kpi-b-sessions').textContent  = convs.length;
+  document.getElementById('kpi-b-messages').textContent  = convs.reduce((s,n)=>s+(n.messageCount||0),0);
+  document.getElementById('kpi-b-memories').textContent  = mems.length;
+  document.getElementById('kpi-b-projects').textContent  = hubNs.length;
+
+  // Timeline
+  const weeklyMap = {};
+  convs.forEach(n=>{
+    if (!n.startedAt) return;
+    const d=new Date(n.startedAt);
+    const wk=new Date(d - d.getDay()*86400000).toISOString().slice(0,10);
+    weeklyMap[wk]=(weeklyMap[wk]||0)+1;
+  });
+  drawTimelineChart('a-chart-timeline', weeklyMap, 90);
+
+  // Categories
+  const catMap={};
+  convs.forEach(n=>{ if(n.category) catMap[n.category]=(catMap[n.category]||0)+1; });
+  const catEntries = Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  if (catEntries.length) {
+    document.getElementById('a-chart-categories').height = catEntries.length * 16;
+    drawBarChart('a-chart-categories', catEntries, lbl=>(CATEGORY_COLORS[lbl]||'#666')+'88', catEntries.length*16);
+  }
+
+  // Tools
+  const toolMap={};
+  convs.forEach(n=>{ (n.toolsUsed||[]).forEach(t=>{toolMap[t]=(toolMap[t]||0)+1;}); });
+  const toolEntries=Object.entries(toolMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  if (toolEntries.length) {
+    document.getElementById('a-chart-tools').height = toolEntries.length * 16;
+    drawBarChart('a-chart-tools', toolEntries, 'rgba(165,120,255,0.5)', toolEntries.length*16);
+  }
+
+  // Projects
+  const projMap={};
+  convs.forEach(n=>{ const p=cleanProject(n.project); projMap[p]=(projMap[p]||0)+1; });
+  const projEntries=Object.entries(projMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  if (projEntries.length) {
+    document.getElementById('a-chart-projects').height = projEntries.length * 16;
+    drawBarChart('a-chart-projects', projEntries, 'rgba(255,255,255,0.25)', projEntries.length*16);
+  }
+}
+
+// HUD
+document.getElementById('hud').textContent =
+  `${nodes.length} neurons · ${drawEdges.length} synapses · ${ACTUAL.toLocaleString()} particles`;
+
+// Initial state
+applyFilters();
+
+// ── Animate ────────────────────────────────────────────────────────
+let frame=0;
+(function animate(){
+  requestAnimationFrame(animate);
+  frame++;
+  const t=frame*.016;
+
+  // Tissue breathe
+  tMat.uniforms.uTime.value  = t;
+  const br=1+Math.sin(t*.34)*.018;
+  tMat.uniforms.uBreath.value= br;
+  neuronGroup.scale.setScalar(br);
+
+  // Hover: tooltip + highlight
+  ray.setFromCamera(mouse, camera);
+  const hits=ray.intersectObjects(neuronGroup.children.filter(m=>m.visible),false);
+  const newHov = hits.length ? hits[0].object.userData.node : null;
+  if (newHov!==hoveredNode) {
+    if (hoveredNode && hoveredNode!==selectedNode)
+      hoveredNode._mesh.material.emissiveIntensity = hoveredNode._baseEmit;
+    if (newHov && newHov!==selectedNode)
+      newHov._mesh.material.emissiveIntensity = newHov._baseEmit*2;
+    hoveredNode=newHov;
+    renderer.domElement.style.cursor = newHov?'pointer':'default';
+    if (newHov) showTooltip(newHov, mouseScreen.x, mouseScreen.y);
+    else hideTooltip();
+  } else if (newHov) {
+    // Keep tooltip position updated
+    showTooltip(newHov, mouseScreen.x, mouseScreen.y);
+  }
+
+  // Neuron subtle pulse
+  nodes.forEach(n=>{
+    if (!n._mesh||n===selectedNode) return;
+    const phase=(n.bx+n.by*.7+n.bz*.5)*.02;
+    n._mesh.material.emissiveIntensity = n._baseEmit + Math.sin(t*1.1+phase)*.15*n._baseEmit;
+  });
+
+  // Action potentials
+  if (frame-lastAP>8+Math.floor(Math.random()*12)){ fireAP(); lastAP=frame; }
+  for (let i=AP_POOL.length-1;i>=0;i--){
+    const ap=AP_POOL[i]; ap.t+=ap.speed;
+    if (ap.t>=1){
+      scene.remove(ap.m); ap.m.material.dispose(); AP_POOL.splice(i,1);
+      const tm=neuronMeshes[ap.tgt.id];
+      if (tm){ const b=ap.tgt._baseEmit; tm.material.emissiveIntensity=b*3.5; setTimeout(()=>{ if(tm.material) tm.material.emissiveIntensity=b; },160); }
+    } else {
+      ap.m.position.set(
+        (ap.src.bx+(ap.tgt.bx-ap.src.bx)*ap.t)*br,
+        (ap.src.by+(ap.tgt.by-ap.src.by)*ap.t)*br,
+        (ap.src.bz+(ap.tgt.bz-ap.src.bz)*ap.t)*br
+      );
+    }
+  }
+
+  controls.update();
+  composer.render();
+})();
+
+window.addEventListener('resize',()=>{
+  const W2=window.innerWidth,H2=window.innerHeight;
+  camera.aspect=W2/H2; camera.updateProjectionMatrix();
+  renderer.setSize(W2,H2); composer.setSize(W2,H2);
+});
+</script>
+</body>
+</html>

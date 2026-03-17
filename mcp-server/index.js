@@ -1216,6 +1216,20 @@ function startUIServer(graphData) {
       resetIdleTimer();
       const url = new URL(req.url, "http://localhost");
 
+      // Brain visualization (volumetric particle mode)
+      if (url.pathname === "/brain") {
+        const brainPath = path.join(__dirname, "..", "ui", "brain.html");
+        try {
+          let brainHtml = fs.readFileSync(brainPath, "utf-8");
+          brainHtml = brainHtml.replace("/*__GRAPH_DATA__*/", `window.__GRAPH_DATA__ = ${JSON.stringify(clientData)};`);
+          res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" });
+          res.end(brainHtml);
+        } catch (e) {
+          res.writeHead(404); res.end("Brain visualization not found: " + e.message);
+        }
+        return;
+      }
+
       // API: fetch conversation messages or memory body on demand
       if (url.pathname === "/api/detail") {
         const nodeId = url.searchParams.get("id");

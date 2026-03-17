@@ -387,6 +387,45 @@
   .analytics-toggle:hover { background: rgba(0,210,255,0.1); box-shadow: 0 0 12px rgba(0,210,255,0.1); }
   .analytics-toggle.active { background: rgba(0,210,255,0.15); border-color: #00d2ff; text-shadow: 0 0 10px rgba(0,210,255,0.5); }
 
+  /* Holographic toggle */
+  .holo-toggle {
+    background: rgba(0,0,0,0);
+    border: 1px solid rgba(0,245,255,0.25);
+    border-radius: 4px;
+    padding: 4px 12px;
+    color: rgba(0,245,255,0.6);
+    font-family: inherit;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.4s;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden;
+  }
+  .holo-toggle::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, transparent 40%, rgba(0,245,255,0.08) 50%, transparent 60%);
+    transform: translateX(-100%);
+    transition: transform 0.6s;
+  }
+  .holo-toggle:hover::before { transform: translateX(100%); }
+  .holo-toggle:hover { border-color: rgba(0,245,255,0.6); color: #00f5ff; box-shadow: 0 0 16px rgba(0,245,255,0.2), inset 0 0 16px rgba(0,245,255,0.04); }
+  .holo-toggle.active {
+    background: rgba(0,245,255,0.06);
+    border-color: #00f5ff;
+    color: #00f5ff;
+    text-shadow: 0 0 12px rgba(0,245,255,0.8);
+    box-shadow: 0 0 20px rgba(0,245,255,0.25), inset 0 0 20px rgba(0,245,255,0.06);
+    animation: holoButtonPulse 2s ease-in-out infinite;
+  }
+  @keyframes holoButtonPulse {
+    0%, 100% { box-shadow: 0 0 20px rgba(0,245,255,0.25), inset 0 0 20px rgba(0,245,255,0.06); }
+    50% { box-shadow: 0 0 30px rgba(0,245,255,0.4), inset 0 0 20px rgba(0,245,255,0.1); }
+  }
+
   /* Chart tooltip */
   #chart-tooltip {
     position: fixed;
@@ -443,6 +482,8 @@
   <button class="filter-btn" id="conv-toggle" style="--type-color:#ff4081;margin-top:4px;width:100%;text-align:left" title="Toggle chatlog visibility">Hide chatlogs</button>
   <button class="layout-toggle" id="layout-toggle" title="Toggle timeline/cluster layout (T)">Cluster</button>
   <button class="analytics-toggle" id="analytics-toggle" title="Analytics dashboard (A)">Analytics</button>
+  <button class="holo-toggle" id="holo-toggle" title="Holographic brain mode (H)">⬡ Holo</button>
+  <a href="/brain" class="holo-toggle" style="text-decoration:none" title="Volumetric neural cortex view">⬡ Cortex</a>
   <div class="stats" id="stats-bar"></div>
 </div>
 
@@ -737,6 +778,327 @@ const vignetteShader = {
   `,
 };
 composer.addPass(new ShaderPass(vignetteShader));
+
+// ═══════════════════════════════════════════════════════════════════
+// HOLOGRAPHIC MODE
+// ═══════════════════════════════════════════════════════════════════
+
+let holoMode = false;
+
+// ── RGBShift pass (chromatic aberration) ───────────────────────────
+const rgbShiftPass = new ShaderPass({
+  uniforms: {
+    tDiffuse: { value: null },
+    amount:   { value: 0.0 },
+    angle:    { value: 0.0 },
+  },
+  vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float amount;
+    uniform float angle;
+    varying vec2 vUv;
+    void main(){
+      vec2 off = amount * vec2(cos(angle), sin(angle));
+      vec4 cr = texture2D(tDiffuse, vUv + off);
+      vec4 cg = texture2D(tDiffuse, vUv);
+      vec4 cb = texture2D(tDiffuse, vUv - off);
+      gl_FragColor = vec4(cr.r, cg.g, cb.b, cg.a);
+    }
+  `,
+});
+rgbShiftPass.uniforms.amount.value = 0.0;
+composer.addPass(rgbShiftPass);
+
+// ── Scanline overlay pass ──────────────────────────────────────────
+const scanlinePass = new ShaderPass({
+  uniforms: {
+    tDiffuse:  { value: null },
+    uTime:     { value: 0.0 },
+    uStrength: { value: 0.0 },
+    uRes:      { value: new THREE.Vector2(W, H) },
+  },
+  vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float uTime;
+    uniform float uStrength;
+    uniform vec2 uRes;
+    varying vec2 vUv;
+    void main(){
+      vec4 col = texture2D(tDiffuse, vUv);
+      // Horizontal scanlines
+      float line = mod(vUv.y * uRes.y + uTime * 40.0, 4.0);
+      float scan = smoothstep(0.0, 1.0, line) * smoothstep(4.0, 3.0, line);
+      col.rgb *= mix(1.0, 0.65 + scan * 0.35, uStrength);
+      // Holographic tint — push toward cyan
+      vec3 holoTint = vec3(0.0, 0.96, 1.0);
+      col.rgb = mix(col.rgb, col.rgb * holoTint * 1.15, uStrength * 0.35);
+      // Flicker
+      float flicker = 1.0 - uStrength * 0.04 * sin(uTime * 47.3 + vUv.y * 200.0);
+      col.rgb *= flicker;
+      gl_FragColor = col;
+    }
+  `,
+});
+composer.addPass(scanlinePass);
+
+// ── Brain hull mesh ────────────────────────────────────────────────
+const HOLO_COLOR = new THREE.Color(0x00f5ff);
+
+const brainHullMat = new THREE.ShaderMaterial({
+  transparent: true,
+  depthWrite: false,
+  side: THREE.FrontSide,
+  blending: THREE.AdditiveBlending,
+  uniforms: {
+    uTime:     { value: 0 },
+    uColor:    { value: HOLO_COLOR.clone() },
+    uOpacity:  { value: 0.0 },
+  },
+  vertexShader: `
+    varying vec3 vNormal;
+    varying vec3 vWorldPos;
+    varying vec2 vUv;
+    void main(){
+      vNormal   = normalize(normalMatrix * normal);
+      vWorldPos = (modelMatrix * vec4(position,1.0)).xyz;
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform float uTime;
+    uniform vec3  uColor;
+    uniform float uOpacity;
+    varying vec3 vNormal;
+    varying vec3 vWorldPos;
+    varying vec2 vUv;
+    void main(){
+      vec3 viewDir = normalize(cameraPosition - vWorldPos);
+      float fresnel = pow(1.0 - abs(dot(vNormal, viewDir)), 3.5);
+      // Horizontal scanlines on the surface
+      float scan = sin(vWorldPos.y * 0.18 + uTime * 1.2) * 0.5 + 0.5;
+      scan = pow(scan, 6.0) * 0.6 + 0.4;
+      // Interference (two wave systems crossing)
+      float itf = sin(vWorldPos.x * 0.06 + uTime * 0.7)
+                * sin(vWorldPos.z * 0.06 - uTime * 0.5);
+      itf = itf * 0.5 + 0.5;
+      float alpha = uOpacity * (fresnel * 0.75 + 0.08) * scan * (0.7 + itf * 0.3);
+      vec3 col = uColor * (1.0 + fresnel * 2.5) * scan;
+      gl_FragColor = vec4(col, alpha);
+    }
+  `,
+});
+
+const brainWireMat = new THREE.ShaderMaterial({
+  transparent: true,
+  depthWrite: false,
+  wireframe: true,
+  blending: THREE.AdditiveBlending,
+  uniforms: {
+    uTime:    { value: 0 },
+    uColor:   { value: HOLO_COLOR.clone() },
+    uOpacity: { value: 0.0 },
+  },
+  vertexShader: `
+    varying vec3 vWorldPos;
+    void main(){
+      vWorldPos = (modelMatrix * vec4(position,1.0)).xyz;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform float uTime;
+    uniform vec3  uColor;
+    uniform float uOpacity;
+    varying vec3 vWorldPos;
+    void main(){
+      float pulse = sin(length(vWorldPos) * 0.015 - uTime * 1.5) * 0.5 + 0.5;
+      float alpha = uOpacity * (0.06 + pulse * 0.06);
+      gl_FragColor = vec4(uColor, alpha);
+    }
+  `,
+});
+
+// Overall brain: oblate sphere enclosing all nodes
+const brainGroup = new THREE.Group();
+
+// Main surface hull
+const hullGeo = new THREE.SphereGeometry(400, 64, 48);
+hullGeo.applyMatrix4(new THREE.Matrix4().makeScale(1.0, 0.72, 0.88));
+const hullMesh = new THREE.Mesh(hullGeo, brainHullMat);
+brainGroup.add(hullMesh);
+
+// Wireframe overlay (slightly smaller)
+const wireGeo = new THREE.SphereGeometry(398, 48, 36);
+wireGeo.applyMatrix4(new THREE.Matrix4().makeScale(1.0, 0.72, 0.88));
+const wireMesh = new THREE.Mesh(wireGeo, brainWireMat);
+brainGroup.add(wireMesh);
+
+// Left hemisphere boundary line (thin torus in YZ plane)
+const hemiMat = new THREE.MeshBasicMaterial({
+  color: HOLO_COLOR, transparent: true, opacity: 0.0,
+  blending: THREE.AdditiveBlending, depthWrite: false,
+});
+const hemiRingGeo = new THREE.TorusGeometry(288, 0.8, 6, 128);
+const hemiRing = new THREE.Mesh(hemiRingGeo, hemiMat);
+hemiRing.rotation.y = Math.PI / 2;
+brainGroup.add(hemiRing);
+
+brainGroup.visible = false;
+scene.add(brainGroup);
+
+// ── Holographic node shader ────────────────────────────────────────
+const holoNodeVert = `
+  varying vec3 vNormal;
+  varying vec3 vWorldPos;
+  void main(){
+    vNormal   = normalize(normalMatrix * normal);
+    vWorldPos = (modelMatrix * vec4(position,1.0)).xyz;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
+  }
+`;
+const holoNodeFrag = `
+  uniform float uTime;
+  uniform vec3  uColor;
+  uniform float uFresnelPow;
+  varying vec3 vNormal;
+  varying vec3 vWorldPos;
+  void main(){
+    vec3 viewDir = normalize(cameraPosition - vWorldPos);
+    float fresnel = pow(1.0 - abs(dot(vNormal, viewDir)), uFresnelPow);
+    float scan = sin(vWorldPos.y * 0.25 + uTime * 2.5) * 0.5 + 0.5;
+    scan = pow(scan, 4.0) * 0.5 + 0.5;
+    vec3 col = mix(uColor * 0.3, uColor * 2.2, fresnel) * scan;
+    float alpha = mix(0.15, 0.85, fresnel) * scan;
+    gl_FragColor = vec4(col, alpha);
+  }
+`;
+
+// Cache original materials so we can restore them
+const _origMaterials = new Map(); // mesh uuid → original material array or material
+const _holoMaterials = new Map(); // node id → ShaderMaterial
+
+function getHoloMaterial(n) {
+  if (_holoMaterials.has(n.id)) return _holoMaterials.get(n.id);
+  // Map node color to holographic cyan variant
+  const baseColor = TYPE_COLORS[n.type] || TYPE_COLORS[n.nodeType] || TYPE_COLORS.unknown;
+  const holoColor = baseColor.clone().lerp(HOLO_COLOR, 0.65).multiplyScalar(1.4);
+  const mat = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending,
+    uniforms: {
+      uTime:       { value: 0 },
+      uColor:      { value: holoColor },
+      uFresnelPow: { value: n.nodeType === 'project-hub' ? 1.8 : 2.5 },
+    },
+    vertexShader: holoNodeVert,
+    fragmentShader: holoNodeFrag,
+  });
+  _holoMaterials.set(n.id, mat);
+  return mat;
+}
+
+function applyHoloMaterials() {
+  Object.values(nodeMeshes).forEach(group => {
+    const nd = group.userData.node;
+    if (!nd) return;
+    const mat = getHoloMaterial(nd);
+    group.traverse(child => {
+      if (child.isMesh && child.name !== 'halo') {
+        if (!_origMaterials.has(child.uuid)) _origMaterials.set(child.uuid, child.material);
+        child.material = mat;
+      }
+    });
+  });
+}
+
+function restoreOriginalMaterials() {
+  Object.values(nodeMeshes).forEach(group => {
+    group.traverse(child => {
+      if (child.isMesh && _origMaterials.has(child.uuid)) {
+        child.material = _origMaterials.get(child.uuid);
+      }
+    });
+  });
+}
+
+// ── Dendrite stubs (added to hubs in holo mode) ───────────────────
+const _hubDendrites = [];
+
+function buildHoloDendrites() {
+  if (_hubDendrites.length > 0) return; // already built
+  const GOLDEN = 2.399963229;
+  nodes.filter(n => n.nodeType === 'project-hub').forEach(hub => {
+    const mesh = nodeMeshes[hub.id];
+    if (!mesh) return;
+    const s = nodeScale(hub);
+    const tubeMat = new THREE.MeshBasicMaterial({
+      color: HOLO_COLOR, transparent: true, opacity: 0.0,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    // 8 short dendritic stubs radiating outward
+    for (let i = 0; i < 8; i++) {
+      const t = (i + 0.5) / 8;
+      const incl = Math.acos(1 - 2 * t);
+      const azim = i * GOLDEN;
+      const len = s * (3.5 + Math.random() * 2.5);
+      const dx = Math.sin(incl) * Math.cos(azim);
+      const dy = Math.cos(incl) * 0.7;
+      const dz = Math.sin(incl) * Math.sin(azim);
+      const pts = [
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(dx * len * 0.4, dy * len * 0.4, dz * len * 0.4),
+        new THREE.Vector3(dx * len, dy * len, dz * len),
+      ];
+      const curve = new THREE.CatmullRomCurve3(pts);
+      const tubeGeo = new THREE.TubeGeometry(curve, 6, 0.18, 4, false);
+      const tube = new THREE.Mesh(tubeGeo, tubeMat.clone());
+      tube.name = 'holoDendrite';
+      mesh.add(tube);
+      _hubDendrites.push(tube);
+    }
+    // Synaptic knob at soma
+    const knobGeo = new THREE.SphereGeometry(s * 0.15, 6, 6);
+    const knobMat = new THREE.MeshBasicMaterial({
+      color: HOLO_COLOR, transparent: true, opacity: 0.0,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    const knob = new THREE.Mesh(knobGeo, knobMat);
+    knob.name = 'holoKnob';
+    mesh.add(knob);
+    _hubDendrites.push(knob);
+  });
+}
+
+// ── Toggle function ────────────────────────────────────────────────
+let _holoFadeTarget = 0;
+let _holoFadeCurrent = 0;
+
+function toggleHoloMode() {
+  holoMode = !holoMode;
+  _holoFadeTarget = holoMode ? 1.0 : 0.0;
+  document.getElementById('holo-toggle').classList.toggle('active', holoMode);
+
+  if (holoMode) {
+    buildHoloDendrites();
+    brainGroup.visible = true;
+    applyHoloMaterials();
+    // Boost bloom
+    bloomPass.strength = 2.2;
+    bloomPass.radius   = 0.8;
+  } else {
+    restoreOriginalMaterials();
+    bloomPass.strength = 1.2;
+    bloomPass.radius   = 0.5;
+  }
+}
+
+document.getElementById('holo-toggle').addEventListener('click', toggleHoloMode);
+document.addEventListener('keydown', e => { if (e.key === 'h' || e.key === 'H') toggleHoloMode(); });
 
 // ═══════════════════════════════════════════════════════════════════
 // HOLOGRAPHIC GRID FLOOR
@@ -2222,6 +2584,48 @@ function animate() {
 
   // Update uniforms
   gridMaterial.uniforms.uTime.value = frame * 0.016;
+
+  // ── Holographic mode tick ────────────────────────────────────────
+  const t16 = frame * 0.016;
+  if (_holoFadeCurrent !== _holoFadeTarget) {
+    const step = 0.025;
+    _holoFadeCurrent += (_holoFadeTarget - _holoFadeCurrent) * step;
+    if (Math.abs(_holoFadeCurrent - _holoFadeTarget) < 0.002) _holoFadeCurrent = _holoFadeTarget;
+
+    // Fade brain shell
+    const surfAlpha = _holoFadeCurrent * 0.28;
+    const wireAlpha = _holoFadeCurrent * 0.12;
+    brainHullMat.uniforms.uOpacity.value = surfAlpha;
+    brainWireMat.uniforms.uOpacity.value = wireAlpha;
+    hemiMat.opacity = _holoFadeCurrent * 0.18;
+
+    // Fade post-processing
+    rgbShiftPass.uniforms.amount.value  = _holoFadeCurrent * 0.0028;
+    scanlinePass.uniforms.uStrength.value = _holoFadeCurrent;
+
+    // Fade dendrites
+    _hubDendrites.forEach(m => { if (m.material) m.material.opacity = _holoFadeCurrent * 0.55; });
+
+    // Hide brain shell when fully faded out
+    if (_holoFadeCurrent < 0.01) brainGroup.visible = false;
+  }
+
+  if (holoMode || _holoFadeCurrent > 0.01) {
+    // Animate brain hull shaders
+    brainHullMat.uniforms.uTime.value = t16;
+    brainWireMat.uniforms.uTime.value = t16;
+    // Slow brain rotation
+    brainGroup.rotation.y += 0.0006;
+
+    // Animate node holo materials
+    _holoMaterials.forEach(mat => { mat.uniforms.uTime.value = t16; });
+
+    // Scanline time
+    scanlinePass.uniforms.uTime.value = t16;
+
+    // Chromatic aberration slight angle drift
+    rgbShiftPass.uniforms.angle.value = t16 * 0.3;
+  }
 
   // Auto-rotate pauses on interaction
   const idleTime = Date.now() - lastInteraction;
