@@ -578,6 +578,240 @@ function discoverProjectHubs(memories, projectFiles) {
   return hubs;
 }
 
+// ---------------------------------------------------------------------------
+// Plans discovery
+// ---------------------------------------------------------------------------
+
+function discoverPlans() {
+  const plansDir = path.join(os.homedir(), '.claude', 'plans');
+  if (!fs.existsSync(plansDir)) return [];
+  const plans = [];
+  let idCounter = 0;
+  try {
+    const files = fs.readdirSync(plansDir).filter(f => f.endsWith('.md'));
+    for (const file of files) {
+      const filePath = path.join(plansDir, file);
+      try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const stat = fs.statSync(filePath);
+        const titleMatch = content.match(/^#\s+(.+)$/m);
+        const name = titleMatch ? titleMatch[1].trim() : file.replace(/\.md$/, '').replace(/-/g, ' ');
+        const sections = [...content.matchAll(/^##\s+(.+)$/gm)].map(m => m[1].trim());
+        const descMatch = content.replace(/^#[^\n]*\n/, '').match(/([^\n#].{10,})/);
+        const description = descMatch ? descMatch[1].trim().slice(0, 200) : '';
+        plans.push({
+          id: `plan_${idCounter++}`,
+          file,
+          path: filePath,
+          project: '__global__',
+          name,
+          description,
+          type: 'plan',
+          nodeType: 'plan',
+          body: content,
+          sections,
+          modifiedAt: stat.mtime.toISOString(),
+        });
+      } catch (_) {}
+    }
+  } catch (_) {}
+  return plans;
+}
+
+// ---------------------------------------------------------------------------
+// MCP tools discovery
+// ---------------------------------------------------------------------------
+
+function discoverMcpTools(allConversations) {
+  const seenPaths = new Set();
+  const tools = [];
+  let idCounter = 0;
+  const cwds = [...new Set(allConversations.filter(c => c.cwd).map(c => c.cwd))];
+  for (const cwd of cwds) {
+    const mcpPath = path.join(cwd, '.mcp.json');
+    if (seenPaths.has(mcpPath) || !fs.existsSync(mcpPath)) continue;
+    seenPaths.add(mcpPath);
+    try {
+      const content = fs.readFileSync(mcpPath, 'utf-8');
+      const config = JSON.parse(content);
+      const servers = config.mcpServers || {};
+      const projectEntry = allConversations.find(c => c.cwd === cwd);
+      const project = projectEntry ? projectEntry.project : '__unknown__';
+      const stat = fs.statSync(mcpPath);
+      for (const [serverName, serverConfig] of Object.entries(servers)) {
+        const cmd = `${serverConfig.command || 'node'} ${(serverConfig.args || []).join(' ')}`.trim();
+        tools.push({
+          id: `mcp_${idCounter++}`,
+          file: '.mcp.json',
+          path: mcpPath,
+          project,
+          cwd,
+          name: serverName,
+          description: `MCP server: ${cmd}`,
+          type: 'mcp-tool',
+          nodeType: 'mcp-tool',
+          body: JSON.stringify(serverConfig, null, 2),
+          command: serverConfig.command || 'node',
+          args: serverConfig.args || [],
+          env: serverConfig.env || {},
+          modifiedAt: stat.mtime.toISOString(),
+        });
+      }
+    } catch (_) {}
+  }
+  return tools;
+}
+
+// ---------------------------------------------------------------------------
+// Plugins discovery
+// ---------------------------------------------------------------------------
+
+function discoverPlugins() {
+  const pluginsPath = path.join(os.homedir(), '.claude', 'plugins', 'installed_plugins.json');
+  if (!fs.existsSync(pluginsPath)) return [];
+  const plugins = [];
+  let idCounter = 0;
+  try {
+    const data = JSON.parse(fs.readFileSync(pluginsPath, 'utf-8'));
+    for (const [pluginId, installations] of Object.entries(data.plugins || {})) {
+      const latest = installations[installations.length - 1];
+      const shortName = pluginId.split('@')[0];
+      plugins.push({
+        id: `plugin_${idCounter++}`,
+        file: 'installed_plugins.json',
+        path: pluginsPath,
+        project: '__global__',
+        name: shortName,
+        description: `Installed plugin · v${latest.version} · ${latest.scope} scope`,
+        type: 'plugin',
+        nodeType: 'plugin',
+        body: JSON.stringify(latest, null, 2),
+        pluginId,
+        version: latest.version,
+        installedAt: latest.installedAt,
+        scope: latest.scope,
+        modifiedAt: latest.lastUpdated || latest.installedAt,
+      });
+    }
+  } catch (_) {}
+  return plugins;
+}
+
+// ---------------------------------------------------------------------------
+// Todos discovery
+// ---------------------------------------------------------------------------
+
+function discoverTodos() {
+  const todosDir = path.join(os.homedir(), '.claude', 'todos');
+  if (!fs.existsSync(todosDir)) return [];
+  const todos = [];
+  let idCounter = 0;
+  try {
+    const files = fs.readdirSync(todosDir).filter(f => f.endsWith('.json'));
+    for (const file of files) {
+      const filePath = path.join(todosDir, file);
+      try {
+        const items = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+        if (!Array.isArray(items) || items.length === 0) continue;
+        const stat = fs.statSync(filePath);
+        // Extract sessionId from filename pattern: {sessionId}-agent-{agentId}.json
+        const match = file.match(/^([a-f0-9-]+)-agent-([a-f0-9]+)\.json$/);
+        const sessionId = match ? match[1] : null;
+        const agentId = match ? match[2] : null;
+        const pending = items.filter(i => i.status !== 'completed').length;
+        const completed = items.filter(i => i.status === 'completed').length;
+        const name = items[0].content.slice(0, 60) + (items.length > 1 ? ` (+${items.length - 1})` : '');
+        const body = items.map(i => `[${i.status === 'completed' ? 'x' : i.status === 'in_progress' ? '~' : ' '}] ${i.content}`).join('\n');
+        todos.push({
+          id: `todo_${idCounter++}`,
+          file,
+          path: filePath,
+          project: '__global__',
+          sessionId,
+          agentId,
+          name: `Tasks: ${name}`,
+          description: `${completed} done · ${pending} pending`,
+          type: 'todo',
+          nodeType: 'todo',
+          body,
+          items,
+          totalItems: items.length,
+          pendingItems: pending,
+          completedItems: completed,
+          modifiedAt: stat.mtime.toISOString(),
+        });
+      } catch (_) {}
+    }
+  } catch (_) {}
+  return todos;
+}
+
+// ---------------------------------------------------------------------------
+// Edge builders for new types
+// ---------------------------------------------------------------------------
+
+function buildPlanEdges(plans, memories, projectFiles, hubs) {
+  const edges = [];
+  for (const plan of plans) {
+    // Plans connect to all hubs (global planning applies to all projects)
+    for (const hub of hubs) {
+      edges.push({ source: plan.id, target: hub.id, weight: 0.4, edgeType: 'plan-hub' });
+    }
+    // Plans connect to memories with shared keywords
+    const planWords = new Set(plan.body.toLowerCase().split(/\W+/).filter(w => w.length > 6));
+    for (const mem of memories) {
+      const memWords = new Set((mem.body || '').toLowerCase().split(/\W+/).filter(w => w.length > 6));
+      let shared = 0;
+      for (const w of planWords) if (memWords.has(w)) shared++;
+      if (shared >= 3) edges.push({ source: plan.id, target: mem.id, weight: Math.min(shared * 0.1, 0.6), edgeType: 'plan-mem' });
+    }
+  }
+  return edges;
+}
+
+function buildMcpToolEdges(mcpTools, hubs, projectFiles) {
+  const edges = [];
+  for (const tool of mcpTools) {
+    // Connect to matching project hub
+    const hub = hubs.find(h => h.project === tool.project);
+    if (hub) edges.push({ source: tool.id, target: hub.id, weight: 0.8, edgeType: 'mcp-hub' });
+    // Connect to matching project-file (CLAUDE.md uses this tool)
+    const pf = projectFiles.find(p => p.project === tool.project);
+    if (pf) edges.push({ source: tool.id, target: pf.id, weight: 0.6, edgeType: 'mcp-proj' });
+  }
+  return edges;
+}
+
+function buildPluginEdges(plugins, mcpTools, globalNodes) {
+  const edges = [];
+  for (const plugin of plugins) {
+    // Connect plugin to global settings
+    for (const g of globalNodes) {
+      edges.push({ source: plugin.id, target: g.id, weight: 0.7, edgeType: 'plugin-global' });
+    }
+    // Connect plugin to matching mcp tools (by name prefix)
+    for (const tool of mcpTools) {
+      if (tool.name.includes(plugin.name) || plugin.name.includes(tool.name.split('-')[0])) {
+        edges.push({ source: plugin.id, target: tool.id, weight: 0.9, edgeType: 'plugin-tool' });
+      }
+    }
+  }
+  return edges;
+}
+
+function buildTodoEdges(todos, hubs) {
+  const edges = [];
+  for (const todo of todos) {
+    // Connect active todos to all hubs (they represent ongoing work)
+    if (todo.pendingItems > 0) {
+      for (const hub of hubs) {
+        edges.push({ source: todo.id, target: hub.id, weight: 0.3, edgeType: 'todo-hub' });
+      }
+    }
+  }
+  return edges;
+}
+
 function buildProjectHubEdges(hubs, memories, projectFiles, globalNodes) {
   const edges = [];
   for (const hub of hubs) {
@@ -1240,8 +1474,17 @@ const TOOLS = {
         return node;
       });
 
-      const allNodes = [...enrichedMemNodes, ...convNodes, ...projectFiles, ...globalNodes, ...hubs];
-      const allEdges = [...memEdges, ...brainEdges, ...projEdges, ...hubEdges];
+      const plans = discoverPlans();
+      const mcpTools = discoverMcpTools(allConvs);
+      const plugins = discoverPlugins();
+      const todos = discoverTodos();
+      const planEdges = buildPlanEdges(plans, memories, projectFiles, hubs);
+      const mcpEdges = buildMcpToolEdges(mcpTools, hubs, projectFiles);
+      const pluginEdges = buildPluginEdges(plugins, mcpTools, globalNodes);
+      const todoEdges = buildTodoEdges(todos, hubs);
+
+      const allNodes = [...enrichedMemNodes, ...convNodes, ...projectFiles, ...globalNodes, ...hubs, ...plans, ...mcpTools, ...plugins, ...todos];
+      const allEdges = [...memEdges, ...brainEdges, ...projEdges, ...hubEdges, ...planEdges, ...mcpEdges, ...pluginEdges, ...todoEdges];
 
       // Add cross-reference edges
       const nodeIdByKey = {};
@@ -1274,6 +1517,10 @@ const TOOLS = {
         totalConversations: convNodes.length,
         totalProjectFiles: projectFiles.length,
         totalEdges: allEdges.length,
+        totalPlans: plans.length,
+        totalMcpTools: mcpTools.length,
+        totalPlugins: plugins.length,
+        totalTodos: todos.length,
       };
     },
   },
@@ -1634,8 +1881,17 @@ const TOOLS = {
         return enriched;
       });
 
-      const allNodes = [...enrichedMemories, ...convNodes, ...projectFiles, ...globalNodes, ...hubs];
-      const allEdges = [...memEdges, ...brainEdges, ...projEdges, ...hubEdges];
+      const plans = discoverPlans();
+      const mcpTools = discoverMcpTools(allConvs);
+      const plugins = discoverPlugins();
+      const todos = discoverTodos();
+      const planEdges = buildPlanEdges(plans, memories, projectFiles, hubs);
+      const mcpEdges = buildMcpToolEdges(mcpTools, hubs, projectFiles);
+      const pluginEdges = buildPluginEdges(plugins, mcpTools, globalNodes);
+      const todoEdges = buildTodoEdges(todos, hubs);
+
+      const allNodes = [...enrichedMemories, ...convNodes, ...projectFiles, ...globalNodes, ...hubs, ...plans, ...mcpTools, ...plugins, ...todos];
+      const allEdges = [...memEdges, ...brainEdges, ...projEdges, ...hubEdges, ...planEdges, ...mcpEdges, ...pluginEdges, ...todoEdges];
 
       // Add cross-reference edges
       const nodeIdByKey = {};
@@ -1683,6 +1939,10 @@ const TOOLS = {
         totalProjectHubs: hubs.length,
         totalGlobalNodes: globalNodes.length,
         totalEdges: allEdges.length,
+        totalPlans: plans.length,
+        totalMcpTools: mcpTools.length,
+        totalPlugins: plugins.length,
+        totalTodos: todos.length,
       };
     },
   },

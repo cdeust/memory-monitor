@@ -435,6 +435,10 @@
     <button class="filter-btn" data-type="settings" style="--type-color:#ffb300">Settings</button>
     <button class="filter-btn" data-type="__global__" style="--type-color:#29b6f6">Global</button>
     <button class="filter-btn" data-type="conversation" style="--type-color:#ff4081">Chatlogs</button>
+    <button class="filter-btn" data-type="plan" style="--type-color:#1abc9c">Plans</button>
+    <button class="filter-btn" data-type="mcp-tool" style="--type-color:#6c63ff">MCP Tools</button>
+    <button class="filter-btn" data-type="plugin" style="--type-color:#9c27b0">Plugins</button>
+    <button class="filter-btn" data-type="todo" style="--type-color:#ffc107">Todos</button>
   </div>
   <button class="filter-btn" id="conv-toggle" style="--type-color:#ff4081;margin-top:4px;width:100%;text-align:left" title="Toggle chatlog visibility">Hide chatlogs</button>
   <button class="layout-toggle" id="layout-toggle" title="Toggle timeline/cluster layout (T)">Cluster</button>
@@ -521,6 +525,11 @@
   <div class="legend-item"><div class="legend-dot" style="background:#26de81"></div>Project ctx</div>
   <div class="legend-item"><div class="legend-dot" style="background:#a55eea"></div>Reference</div>
   <div class="legend-item"><div class="legend-hex" style="opacity:0.4"></div><span style="opacity:0.5">Chatlogs (hidden)</span></div>
+  <div style="font-size:9px;color:#3a4a5a;margin:6px 0 4px;letter-spacing:0.05em">TOOLS &amp; WORK</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#9c27b0"></div>Plugin</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#6c63ff"></div>MCP Tool</div>
+  <div class="legend-item"><div class="legend-diamond" style="background:#1abc9c"></div>Plan</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ffc107"></div>Todo</div>
   <div class="legend-cat" id="legend-categories"></div>
 </div>
 
@@ -562,6 +571,11 @@ const TYPE_COLORS_RGB = {
   'global-instruction': { r: 41,  g: 182, b: 246 },  // sky blue
   // Actions (de-emphasised)
   conversation:       { r: 255, g: 64,  b: 129 },  // pink
+  // New types
+  plan:               { r: 26,  g: 188, b: 156 },  // teal #1abc9c
+  'mcp-tool':         { r: 108, g: 99,  b: 255 },  // indigo #6c63ff
+  plugin:             { r: 156, g: 39,  b: 176 },  // violet #9c27b0
+  todo:               { r: 255, g: 193, b: 7   },  // amber #ffc107
   unknown:            { r: 99,  g: 110, b: 114 },
 };
 
@@ -576,6 +590,10 @@ const TYPE_COLORS = {
   settings:           new THREE.Color(0xffb300),
   'global-instruction': new THREE.Color(0x29b6f6),
   conversation:       new THREE.Color(0xff4081),
+  plan:               new THREE.Color(0x1abc9c),
+  'mcp-tool':         new THREE.Color(0x6c63ff),
+  plugin:             new THREE.Color(0x9c27b0),
+  todo:               new THREE.Color(0xffc107),
   unknown:            new THREE.Color(0x636e72),
 };
 
@@ -640,7 +658,7 @@ scene.background = new THREE.Color(0x030508);
 scene.fog = new THREE.FogExp2(0x030508, 0.0008);
 
 const camera = new THREE.PerspectiveCamera(60, W / H, 1, 5000);
-camera.position.set(0, 150, 500);
+camera.position.set(0, 60, 580);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
 renderer.setSize(W, H);
@@ -799,6 +817,10 @@ const boxGeo     = new THREE.BoxGeometry(1.4, 1.4, 1.4);
 const hubGeo     = new THREE.IcosahedronGeometry(1, 3);   // large smooth sphere for hubs
 const pentaGeo   = new THREE.CylinderGeometry(1, 1, 0.6, 5);  // pentagon cylinder for settings
 const bigOctaGeo = new THREE.OctahedronGeometry(1.3, 1);  // bigger diamond for global instruction
+const tetraGeo   = new THREE.TetrahedronGeometry(1, 0);   // plan - tetrahedron
+const torusGeo   = new THREE.TorusGeometry(0.8, 0.3, 8, 16); // mcp-tool - torus ring
+const dodecaGeo  = new THREE.DodecahedronGeometry(1, 0);   // plugin
+const coneGeo    = new THREE.ConeGeometry(0.8, 1.6, 5);    // todo - cone
 
 function nodeScale(n) {
   if (n.nodeType === 'conversation') {
@@ -809,6 +831,10 @@ function nodeScale(n) {
   if (n.nodeType === 'project-hub') return 4 + Math.min(n.connections * 0.3, 3);
   if (n.nodeType === 'global-instruction') return 5;
   if (n.nodeType === 'settings') return 3.5;
+  if (n.nodeType === 'plan') return 2.5;
+  if (n.nodeType === 'mcp-tool') return 2.2;
+  if (n.nodeType === 'plugin') return 3.5;
+  if (n.nodeType === 'todo') return 1.8 + Math.min((n.totalItems || 1) * 0.2, 1.5);
   return 2 + Math.min(n.connections * 0.4, 3.5);
 }
 
@@ -847,6 +873,10 @@ nodes.forEach(n => {
   if (isHub)      geo = hubGeo;
   if (isSettings) geo = pentaGeo;
   if (isGlobal)   geo = bigOctaGeo;
+  if (n.nodeType === 'plan')     geo = tetraGeo;
+  if (n.nodeType === 'mcp-tool') geo = torusGeo;
+  if (n.nodeType === 'plugin')   geo = dodecaGeo;
+  if (n.nodeType === 'todo')     geo = coneGeo;
 
   const mat = createNodeMaterial(color, n.nodeType);
   const core = new THREE.Mesh(geo, mat);
@@ -935,6 +965,24 @@ nodes.forEach(n => {
     group.add(wireframe);
   }
 
+  // Pulsing ring for todo nodes with pending items
+  if (n.nodeType === 'todo' && n.pendingItems > 0) {
+    const pulseGeo = new THREE.RingGeometry(scale * 1.4, scale * 1.6, 16);
+    const pulseMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+    const pulse = new THREE.Mesh(pulseGeo, pulseMat);
+    pulse.name = 'pulse';
+    group.add(pulse);
+  }
+
+  // Wireframe overlay for MCP tool torus
+  if (n.nodeType === 'mcp-tool') {
+    const wfGeo = new THREE.TorusGeometry(scale * 1.1, 0.04, 6, 32);
+    const wfMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending });
+    const wf = new THREE.Mesh(wfGeo, wfMat);
+    wf.name = 'mcpring';
+    group.add(wf);
+  }
+
   group.userData = { node: n, baseScale: scale, coreMesh: core };
   nodeGroup.add(group);
   nodeMeshes[n.id] = group;
@@ -967,7 +1015,9 @@ scene.add(edgeLines);
 edges.forEach((e, i) => {
   const srcNode = nodeMap[e.source];
   const color = srcNode ? (TYPE_COLORS[srcNode.type] || TYPE_COLORS[srcNode.nodeType] || TYPE_COLORS.unknown) : TYPE_COLORS.unknown;
-  const dim = 0.08 + (e.weight || 0.1) * 0.12;
+  // Axon edges (hub↔global, plugin↔global) are brighter; dendrite edges (memories) are dimmer
+  const isAxon = ['global-hub', 'hub-mem', 'plugin-global', 'mcp-hub', 'plan-hub'].includes(e.edgeType) && e.weight > 0.5;
+  const dim = isAxon ? 0.18 + e.weight * 0.15 : 0.05 + (e.weight || 0.1) * 0.08;
   edgeColors[i * 6]     = color.r * dim;
   edgeColors[i * 6 + 1] = color.g * dim;
   edgeColors[i * 6 + 2] = color.b * dim;
@@ -1080,69 +1130,98 @@ scene.add(dustPoints);
 // ═══════════════════════════════════════════════════════════════════
 
 function initPositions3D() {
-  // ── Hierarchical deterministic layout ──────────────────────────────
-  // Level 0: Global nodes  → top-center (y = 220)
-  // Level 1: Project hubs  → ring at y = 0,  r = 220
-  // Level 2: Anchors (memory-index, project-file) → tight ring r = 48 per hub
-  // Level 3: Memory nodes  → mid ring r = 95 per hub
-  // Level 4: Conversations → outer ring r = 170 per hub
+  const GOLDEN_ANGLE = 2.399963229;
 
-  const globalNs   = nodes.filter(n => n.project === '__global__');
-  const hubNs      = nodes.filter(n => n.nodeType === 'project-hub');
+  // Place N children uniformly on a sphere around parent (Fibonacci sphere)
+  function dendrite(children, px, py, pz, radius, phase) {
+    const N = children.length;
+    if (N === 0) return;
+    children.forEach((n, i) => {
+      const t = (i + 0.5) / N;
+      const incl = Math.acos(1 - 2 * t);
+      const azim = phase + i * GOLDEN_ANGLE;
+      const r = radius * (0.82 + (i % 3) * 0.12);
+      n.x = px + Math.sin(incl) * Math.cos(azim) * r;
+      n.y = py + Math.cos(incl) * r * 0.7;
+      n.z = pz + Math.sin(incl) * Math.sin(azim) * r;
+      n.tx = n.x; n.ty = n.y; n.tz = n.z;
+    });
+  }
+
+  const globalNs  = nodes.filter(n => n.project === '__global__' && n.nodeType !== 'plan' && n.nodeType !== 'todo' && n.nodeType !== 'plugin');
+  const planNs    = nodes.filter(n => n.nodeType === 'plan');
+  const pluginNs  = nodes.filter(n => n.nodeType === 'plugin');
+  const todoNs    = nodes.filter(n => n.nodeType === 'todo');
+  const hubNs     = nodes.filter(n => n.nodeType === 'project-hub');
   const hubProjects = new Set(hubNs.map(h => h.project));
 
-  // Place global nodes at top-center
+  // NUCLEUS — Global/Settings at origin (core of the brain)
   globalNs.forEach((n, i) => {
-    const a = (i / Math.max(globalNs.length, 1)) * Math.PI * 2;
-    const r = globalNs.length > 1 ? 50 : 0;
-    n.x = Math.cos(a) * r; n.y = 220; n.z = Math.sin(a) * r;
+    const a = i * GOLDEN_ANGLE;
+    const r = globalNs.length > 1 ? 20 : 0;
+    n.x = Math.cos(a) * r; n.y = 0; n.z = Math.sin(a) * r;
     n.tx = n.x; n.ty = n.y; n.tz = n.z;
     n._pinned = true;
   });
 
-  // Place project hubs in a flat ring
-  const HUB_R = 220;
+  // Inner axon cloud: Plans orbit nucleus at r=85
+  dendrite(planNs, 0, 0, 0, 85, 0);
+  planNs.forEach(n => { n._pinned = true; });
+
+  // Plugins: smaller inner orbit at r=60
+  dendrite(pluginNs, 0, 0, 0, 60, Math.PI);
+  pluginNs.forEach(n => { n._pinned = true; });
+
+  // Todos: transient work items, loose orbit at r=110
+  dendrite(todoNs, 0, 0, 0, 110, GOLDEN_ANGLE * 5);
+  todoNs.forEach(n => { n._pinned = false; });
+
+  // CORTEX — Project hubs on Fibonacci sphere r=215, Y compressed → egg/brain shape
+  const HUB_R = 215;
+  const N_HUBS = hubNs.length;
   hubNs.forEach((hub, hi) => {
-    const a = (hi / hubNs.length) * Math.PI * 2;
-    hub.x = Math.cos(a) * HUB_R; hub.y = 0; hub.z = Math.sin(a) * HUB_R;
+    const t = (hi + 0.5) / Math.max(N_HUBS, 1);
+    const incl = Math.acos(1 - 2 * t);
+    const azim = hi * GOLDEN_ANGLE;
+    hub.x = Math.sin(incl) * Math.cos(azim) * HUB_R;
+    hub.y = Math.cos(incl) * HUB_R * 0.55; // compress Y → oblate sphere
+    hub.z = Math.sin(incl) * Math.sin(azim) * HUB_R;
     hub.tx = hub.x; hub.ty = hub.y; hub.tz = hub.z;
     hub._pinned = true;
 
-    const cx = hub.x, cz = hub.z;
+    const cx = hub.x, cy = hub.y, cz = hub.z;
 
-    // Anchors — memory-index and project-file
-    const anchors = nodes.filter(n =>
-      n.project === hub.project && (n.nodeType === 'memory-index' || n.nodeType === 'project-file')
+    // Tier 1: structural nodes (project file, memory index, mcp-tool) close to soma
+    const tier1 = nodes.filter(n =>
+      n.project === hub.project &&
+      (n.nodeType === 'memory-index' || n.nodeType === 'project-file' || n.nodeType === 'mcp-tool')
     );
-    anchors.forEach((n, ni) => {
-      const aa = (ni / Math.max(anchors.length, 1)) * Math.PI * 2;
-      n.x = cx + Math.cos(aa) * 48; n.y = ni % 2 === 0 ? 25 : -25; n.z = cz + Math.sin(aa) * 48;
-      n.tx = n.x; n.ty = n.y; n.tz = n.z;
-    });
+    dendrite(tier1, cx, cy, cz, 52, azim);
+    tier1.forEach(n => { n._pinned = true; });
 
-    // Memory nodes
-    const mems = nodes.filter(n => n.project === hub.project && n.nodeType === 'memory');
-    mems.forEach((n, ni) => {
-      const aa = (ni / Math.max(mems.length, 1)) * Math.PI * 2;
-      const r = 95 + (ni % 3) * 18;
-      n.x = cx + Math.cos(aa) * r; n.y = ((ni % 5) - 2) * 18; n.z = cz + Math.sin(aa) * r;
-      n.tx = n.x; n.ty = n.y; n.tz = n.z;
-    });
+    // Tier 2: memory nodes radiate outward
+    const tier2 = nodes.filter(n =>
+      n.project === hub.project && n.nodeType === 'memory'
+    );
+    dendrite(tier2, cx, cy, cz, 95, azim + GOLDEN_ANGLE * tier1.length);
+    tier2.forEach(n => { n._pinned = true; });
 
-    // Conversations
-    const convs = nodes.filter(n => n.project === hub.project && n.nodeType === 'conversation');
-    convs.forEach((n, ni) => {
-      const aa = (ni / Math.max(convs.length, 1)) * Math.PI * 2;
-      n.x = cx + Math.cos(aa) * 170; n.y = ((ni % 7) - 3) * 22; n.z = cz + Math.sin(aa) * 170;
-      n.tx = n.x; n.ty = n.y; n.tz = n.z;
-    });
+    // Tier 3: conversations at synaptic tips (free to drift in force layout)
+    const tier3 = nodes.filter(n =>
+      n.project === hub.project && n.nodeType === 'conversation'
+    );
+    dendrite(tier3, cx, cy, cz, 155, azim + GOLDEN_ANGLE * (tier1.length + tier2.length));
   });
 
-  // Orphan nodes (no hub) — outer scatter ring
+  // Orphan nodes (no hub)
   nodes.forEach((n, ni) => {
-    if (n.project === '__global__' || hubProjects.has(n.project) || n.nodeType === 'project-hub') return;
+    if (n.project === '__global__') return;
+    if (hubProjects.has(n.project)) return;
+    if (n.nodeType === 'project-hub') return;
+    if (n.nodeType === 'plan' || n.nodeType === 'todo' || n.nodeType === 'plugin') return;
+    if (n.x !== undefined && n.x !== 0) return;
     const a = (ni / nodes.length) * Math.PI * 2;
-    n.x = Math.cos(a) * 340; n.y = ((ni % 9) - 4) * 20; n.z = Math.sin(a) * 340;
+    n.x = Math.cos(a) * 340; n.y = ((ni % 7) - 3) * 18; n.z = Math.sin(a) * 340;
     n.tx = n.x; n.ty = n.y; n.tz = n.z;
   });
 }
@@ -1268,9 +1347,19 @@ function applyTimelineLayout3D() {
   window._timelineData3D = { projects: projKeys, minTime, maxTime, width };
 }
 
+// Growth animation: nodes start invisible and grow in
+nodes.forEach((n, i) => {
+  const mesh = nodeMeshes[n.id];
+  if (!mesh) return;
+  mesh.scale.setScalar(0);
+  mesh.userData.growDelay = i * 4; // stagger in ms
+  mesh.userData.growing = true;
+});
+let growFrame = 0;
+
 // Initialize layout
 initPositions3D();
-runForceLayout3D(60);
+runForceLayout3D(20);
 
 // Set mesh positions immediately (no lerp on first frame)
 var positionedCount = 0;
@@ -1486,7 +1575,17 @@ function openPanel(n) {
     if (n.endedAt) timestamps.push(`Ended: ${new Date(n.endedAt).toLocaleString()}`);
     document.getElementById('panel-meta').textContent = timestamps.join(' · ');
   } else {
-    const typeLabel = { 'memory-index': 'MEM INDEX', 'project-file': 'PROJ FILE' }[n.type] || n.type.toUpperCase();
+    const typeLabel = {
+      'memory-index': 'MEM INDEX',
+      'project-file': 'CLAUDE.MD',
+      'project-hub': 'PROJECT HUB',
+      'settings': 'SETTINGS',
+      'global-instruction': 'GLOBAL',
+      'plan': 'PLAN',
+      'mcp-tool': 'MCP TOOL',
+      'plugin': 'PLUGIN',
+      'todo': 'TODO LIST',
+    }[n.type] || n.type.toUpperCase();
     badge.textContent = typeLabel;
     badge.style.background = hexOf(n.type);
     badge.style.color = '#030508';
@@ -1566,23 +1665,112 @@ function openPanel(n) {
   const descEl = document.getElementById('panel-desc');
 
   if (n.nodeType !== 'conversation') {
-    // All knowledge nodes have body available directly — no fetch needed
     descEl.textContent = n.description || '(no description)';
-    document.getElementById('panel-body').textContent = n.body || '';
+    document.getElementById('panel-body').textContent = '';
     messagesEl.innerHTML = '';
-    if (n.body) {
-      const title = document.createElement('div');
-      title.className = 'thread-title';
-      const labels = { 'memory-index': 'Memory index', 'project-file': 'Project instructions', 'project-hub': 'Project hub', 'settings': 'Settings', 'global-instruction': 'Global instructions' };
-      title.textContent = labels[n.nodeType] || 'Memory content';
+
+    // Type-specific rich rendering
+    const bodyEl = document.getElementById('panel-body');
+
+    if (n.nodeType === 'plan') {
+      // Show sections as structured list, then full content
+      if (n.sections && n.sections.length) {
+        let html = '<div style="margin-bottom:8px">';
+        n.sections.forEach(s => {
+          html += `<div style="font-size:10px;color:#1abc9c;padding:2px 0">§ ${escapeHtml(s)}</div>`;
+        });
+        html += '</div>';
+        bodyEl.innerHTML = html;
+      }
+      const title = document.createElement('div'); title.className = 'thread-title'; title.textContent = 'Plan content';
       messagesEl.appendChild(title);
-      const content = document.createElement('div');
-      content.className = 'message-bubble user';
-      content.textContent = n.body;
-      content.style.maxHeight = '400px';
-      content.style.overflowY = 'auto';
-      content.style.whiteSpace = 'pre-wrap';
+      const content = document.createElement('div'); content.className = 'message-bubble user';
+      content.textContent = n.body || ''; content.style.cssText = 'max-height:400px;overflow-y:auto;white-space:pre-wrap;font-size:10px';
       messagesEl.appendChild(content);
+
+    } else if (n.nodeType === 'mcp-tool') {
+      // Show command, args, env
+      let grid = '<div class="metadata-grid">';
+      grid += `<span class="meta-label">Command</span><span class="meta-value">${escapeHtml(n.command || '')}</span>`;
+      if (n.args && n.args.length) grid += `<span class="meta-label">Args</span><span class="meta-value">${escapeHtml(n.args.join(' '))}</span>`;
+      if (n.cwd) grid += `<span class="meta-label">Project</span><span class="meta-value">${escapeHtml(n.cwd.replace(/^\/Users\/[^/]+\//, '~/'))}</span>`;
+      if (n.env && Object.keys(n.env).length) {
+        grid += `<span class="meta-label">Env vars</span><span class="meta-value">${escapeHtml(Object.keys(n.env).join(', '))}</span>`;
+      }
+      grid += '</div>';
+      bodyEl.innerHTML = grid;
+      const title = document.createElement('div'); title.className = 'thread-title'; title.textContent = 'Server config';
+      messagesEl.appendChild(title);
+      const content = document.createElement('div'); content.className = 'message-bubble user';
+      content.textContent = n.body || ''; content.style.cssText = 'max-height:300px;overflow-y:auto;white-space:pre-wrap;font-family:monospace;font-size:10px';
+      messagesEl.appendChild(content);
+
+    } else if (n.nodeType === 'plugin') {
+      let grid = '<div class="metadata-grid">';
+      grid += `<span class="meta-label">Plugin ID</span><span class="meta-value">${escapeHtml(n.pluginId || n.name || '')}</span>`;
+      grid += `<span class="meta-label">Version</span><span class="meta-value">${escapeHtml(n.version || '?')}</span>`;
+      grid += `<span class="meta-label">Scope</span><span class="meta-value">${escapeHtml(n.scope || 'user')}</span>`;
+      if (n.installedAt) grid += `<span class="meta-label">Installed</span><span class="meta-value">${new Date(n.installedAt).toLocaleDateString()}</span>`;
+      grid += '</div>';
+      bodyEl.innerHTML = grid;
+
+    } else if (n.nodeType === 'todo') {
+      const items = n.items || [];
+      let html = '';
+      items.forEach(item => {
+        const icon = item.status === 'completed' ? '✓' : item.status === 'in_progress' ? '◎' : '○';
+        const color = item.status === 'completed' ? '#26de81' : item.status === 'in_progress' ? '#ffc107' : '#636e72';
+        html += `<div style="display:flex;gap:6px;padding:3px 0;font-size:10px;border-bottom:1px solid rgba(255,255,255,0.03)">`;
+        html += `<span style="color:${color};flex-shrink:0">${icon}</span>`;
+        html += `<span style="color:#8a9bae">${escapeHtml(item.content)}</span>`;
+        html += `</div>`;
+      });
+      bodyEl.innerHTML = html || '<div style="color:#3a4a5a;font-size:10px">No items</div>';
+
+    } else if (n.nodeType === 'settings') {
+      // Parse and display settings clearly
+      try {
+        const parsed = JSON.parse(n.body || '{}');
+        let html = '<div style="font-size:10px">';
+        if (parsed.enabledPlugins) {
+          html += '<div style="color:#ffb300;margin-bottom:4px">Enabled plugins:</div>';
+          Object.keys(parsed.enabledPlugins).forEach(p => {
+            html += `<div style="color:#8a9bae;padding:1px 0">▸ ${escapeHtml(p)}</div>`;
+          });
+        }
+        if (parsed.skipDangerousModePermissionPrompt) {
+          html += '<div style="color:#ff6b35;margin-top:6px">⚠ Dangerous mode prompt disabled</div>';
+        }
+        html += '</div>';
+        bodyEl.innerHTML = html;
+      } catch (_) {
+        bodyEl.textContent = n.body || '';
+      }
+
+    } else if (n.nodeType === 'project-hub') {
+      // Show stats about the project
+      const projNodes = nodes.filter(nn => nn.project === n.project && nn.nodeType !== 'project-hub');
+      const counts = {};
+      projNodes.forEach(nn => { counts[nn.nodeType] = (counts[nn.nodeType] || 0) + 1; });
+      let html = '<div class="metadata-grid">';
+      Object.entries(counts).forEach(([type, count]) => {
+        const color = hexOf(type);
+        html += `<span class="meta-label" style="color:${color}">${type}</span><span class="meta-value">${count}</span>`;
+      });
+      html += '</div>';
+      bodyEl.innerHTML = html;
+
+    } else {
+      // Default: show body as markdown-like text
+      if (n.body) {
+        const title = document.createElement('div'); title.className = 'thread-title';
+        const labels = { 'memory-index': 'Memory index', 'project-file': 'Project instructions', 'global-instruction': 'Global instructions' };
+        title.textContent = labels[n.nodeType] || 'Content';
+        messagesEl.appendChild(title);
+        const content = document.createElement('div'); content.className = 'message-bubble user';
+        content.textContent = n.body; content.style.cssText = 'max-height:400px;overflow-y:auto;white-space:pre-wrap';
+        messagesEl.appendChild(content);
+      }
     }
   } else {
   // Fetch conversation messages on demand
@@ -1718,7 +1906,7 @@ function applyFilters() {
         else vis = true; // override _convHidden when filtering to conversations explicitly
       } else if (activeFilter === '__global__') {
         vis = n.project === '__global__';
-      } else if (['project-hub', 'settings', 'global-instruction', 'memory-index', 'project-file'].includes(activeFilter)) {
+      } else if (['project-hub', 'settings', 'global-instruction', 'memory-index', 'project-file', 'plan', 'mcp-tool', 'plugin', 'todo'].includes(activeFilter)) {
         if (n.nodeType !== activeFilter) vis = false;
         else vis = true;
       } else {
@@ -1895,6 +2083,32 @@ function updateNodePositions() {
       core.rotation.y += 0.005;
     }
 
+    // Plan tetrahedrons slowly spin
+    if (n.nodeType === 'plan') {
+      mesh.userData.coreMesh.rotation.x += 0.005;
+      mesh.userData.coreMesh.rotation.y += 0.007;
+    }
+    // MCP tool torus rings rotate
+    if (n.nodeType === 'mcp-tool') {
+      mesh.userData.coreMesh.rotation.x += 0.01;
+      const mcpring = mesh.getObjectByName('mcpring');
+      if (mcpring) mcpring.rotation.z += 0.015;
+    }
+    // Plugin dodecahedrons slowly tumble
+    if (n.nodeType === 'plugin') {
+      mesh.userData.coreMesh.rotation.y += 0.004;
+      mesh.userData.coreMesh.rotation.z += 0.003;
+    }
+    // Todo cones pulse if pending items exist
+    if (n.nodeType === 'todo') {
+      const pulse = mesh.getObjectByName('pulse');
+      if (pulse) {
+        const s = 1 + Math.sin(frame * 0.05) * 0.15;
+        pulse.scale.setScalar(s);
+        pulse.rotation.z += 0.01;
+      }
+    }
+
     // Breathing pulse
     const baseScale = mesh.userData.baseScale;
     const breathe = 1 + Math.sin(frame * 0.015 + n.x * 0.01) * 0.04;
@@ -1990,6 +2204,21 @@ function updateDustParticles() {
 function animate() {
   requestAnimationFrame(animate);
   frame++;
+
+  // Growth animation
+  if (growFrame < nodes.length * 4 + 400) {
+    growFrame += 16;
+    nodes.forEach((n, i) => {
+      const mesh = nodeMeshes[n.id];
+      if (!mesh || !mesh.userData.growing) return;
+      const elapsed = growFrame - mesh.userData.growDelay;
+      if (elapsed < 0) return;
+      const t = Math.min(elapsed / 300, 1); // 300ms per node
+      const eased = t < 0.5 ? 2*t*t : -1+(4-2*t)*t; // ease in-out
+      mesh.scale.setScalar(eased);
+      if (t >= 1) { mesh.scale.setScalar(1); mesh.userData.growing = false; }
+    });
+  }
 
   // Update uniforms
   gridMaterial.uniforms.uTime.value = frame * 0.016;
@@ -2129,7 +2358,7 @@ function toggleLayout() {
     applyTimelineLayout3D();
   } else {
     initPositions3D();
-    runForceLayout3D(60);
+    runForceLayout3D(20);
   }
 }
 
