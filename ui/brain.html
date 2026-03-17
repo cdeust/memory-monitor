@@ -120,12 +120,12 @@ canvas { display:block; position:absolute; top:0; left:0; }
 
 /* ── Detail Panel ───────────────────────────────────────────────── */
 #panel {
-  position:fixed; top:70px; right:-360px; width:340px; height:calc(100vh - 70px);
-  background:rgba(0,0,0,0.92); border-left:1px solid rgba(255,255,255,0.08);
-  padding:20px 18px; overflow-y:auto; transition:right .3s ease;
+  position:fixed; top:70px; right:-400px; width:360px; height:calc(100vh - 70px);
+  background:rgba(0,0,0,0.94); border-left:1px solid rgba(255,255,255,0.08);
+  padding:18px 16px 40px; overflow-y:auto; transition:right .3s ease;
   z-index:300;
 }
-#panel.open { right:0; }
+#panel.open { right:0; box-shadow:-20px 0 60px rgba(0,0,0,0.6); }
 #panel-close {
   position:absolute; top:12px; right:14px;
   color:rgba(255,255,255,0.25); cursor:pointer; font-size:16px;
@@ -185,23 +185,28 @@ canvas { display:block; position:absolute; top:0; left:0; }
 
 /* ── Analytics Panel ────────────────────────────────────────────── */
 #analytics-brain {
-  position:fixed; top:0; left:0; bottom:0; width:360px;
-  background:rgba(0,0,0,0.92); border-right:1px solid rgba(255,255,255,0.08);
+  position:fixed; top:0; left:0; width:300px; height:100vh;
+  background:rgba(0,0,0,0.95); border-right:1px solid rgba(255,255,255,0.08);
   transform:translateX(-100%); transition:transform .4s cubic-bezier(.16,1,.3,1);
-  z-index:300; overflow-y:auto; padding:52px 14px 20px;
+  z-index:250; overflow-y:auto; padding:78px 14px 30px;
+  /* padding-top: topbar(42) + filter-row-2(28) + extra(8) */
 }
 #analytics-brain.open { transform:translateX(0); }
 .a-title {
-  font-size:9px; font-weight:600; color:rgba(255,255,255,0.5);
-  letter-spacing:1.5px; text-transform:uppercase; margin-bottom:6px;
+  font-size:8px; font-weight:600; color:rgba(255,255,255,0.4);
+  letter-spacing:2px; text-transform:uppercase; margin-bottom:8px;
 }
-.a-card { margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.04); }
+.a-card {
+  margin-bottom:18px; padding-bottom:16px;
+  border-bottom:1px solid rgba(255,255,255,0.04);
+  overflow:visible;
+}
 .a-card:last-child { border-bottom:none; }
-.kpi-strip { display:flex; gap:4px; }
-.kpi-box { flex:1; text-align:center; padding:7px 4px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:3px; }
-.kpi-v { font-size:16px; font-weight:700; color:rgba(255,255,255,0.85); line-height:1.2; }
+.kpi-strip { display:flex; gap:4px; margin-bottom:0; }
+.kpi-box { flex:1; text-align:center; padding:8px 4px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:3px; }
+.kpi-v { font-size:18px; font-weight:700; color:rgba(255,255,255,0.85); line-height:1.2; }
 .kpi-l { font-size:7px; color:rgba(255,255,255,0.25); letter-spacing:.5px; text-transform:uppercase; margin-top:2px; }
-.a-card canvas { width:100% !important; display:block; border-radius:2px; }
+.a-card canvas { display:block; position:relative; top:auto; left:auto; }
 
 /* ── Tooltip ────────────────────────────────────────────────────── */
 #tooltip-brain {
@@ -247,6 +252,37 @@ canvas { display:block; position:absolute; top:0; left:0; }
 ::-webkit-scrollbar { width:3px; }
 ::-webkit-scrollbar-track { background:transparent; }
 ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.08); border-radius:2px; }
+
+/* ── Panel enhancements ─────────────────────────────────────────── */
+#panel-type {
+  display:inline-block; font-size:8px; letter-spacing:2px; text-transform:uppercase;
+  border:1px solid; border-radius:2px; padding:2px 7px;
+  margin-bottom:4px; margin-top:8px;
+}
+#panel-cat {
+  display:none; font-size:8px; letter-spacing:1px; text-transform:uppercase;
+  border:1px solid; border-radius:2px; padding:2px 6px; margin-bottom:4px; margin-left:4px;
+}
+#panel-status { font-size:8px; color:rgba(255,255,255,0.25); margin-bottom:6px; letter-spacing:.3px; }
+#panel-tags { display:flex; flex-wrap:wrap; gap:3px; margin-bottom:6px; min-height:0; }
+.tag-pill {
+  font-size:8px; padding:2px 6px; border-radius:2px;
+  background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);
+  color:rgba(255,255,255,0.35); letter-spacing:.3px;
+}
+#panel-meta { font-size:8px; color:rgba(255,255,255,0.2); margin-bottom:10px; letter-spacing:.3px; line-height:1.5; }
+.msg-bubble {
+  margin-bottom:7px; padding:6px 9px;
+  border-radius:3px; border:1px solid rgba(255,255,255,0.04);
+}
+.msg-bubble.user      { background:rgba(255,255,255,0.03); border-left:2px solid rgba(255,255,255,0.14); }
+.msg-bubble.assistant { background:rgba(0,0,0,0.15);       border-left:2px solid rgba(0,200,255,0.2); }
+.msg-role { font-size:8px; color:rgba(255,255,255,0.28); letter-spacing:1px; text-transform:uppercase; margin-bottom:3px; }
+.msg-meta { font-size:8px; color:rgba(255,255,255,0.15); margin-top:4px; letter-spacing:.3px; }
+.tool-list { list-style:none; margin:4px 0 0; padding:0; }
+.tool-item { font-size:8px; color:rgba(255,255,255,0.25); padding:1px 0; }
+.tool-name  { color:rgba(0,210,255,0.65); margin-right:4px; }
+.tool-input { color:rgba(255,255,255,0.18); font-family:inherit; }
 </style>
 </head>
 <body>
@@ -272,7 +308,7 @@ canvas { display:block; position:absolute; top:0; left:0; }
     <button class="fbtn" data-type="plugin">Plugins</button>
     <button class="fbtn" data-type="todo">Todos</button>
   </div>
-  <button id="conv-toggle-brain">Show chatlogs</button>
+  <button id="conv-toggle-brain" class="active">Hide chatlogs</button>
   <button id="layout-toggle-brain">Cluster</button>
   <button id="analytics-toggle-brain">Analytics</button>
   <div id="stats-brain"></div>
@@ -296,8 +332,12 @@ canvas { display:block; position:absolute; top:0; left:0; }
 <div id="panel">
   <span id="panel-close">✕</span>
   <div id="panel-type"></div>
+  <div id="panel-cat"></div>
   <div id="panel-name"></div>
   <div id="panel-proj"></div>
+  <div id="panel-status"></div>
+  <div id="panel-tags"></div>
+  <div id="panel-meta"></div>
   <div id="panel-desc"></div>
   <div id="panel-content"></div>
 </div>
@@ -309,25 +349,33 @@ canvas { display:block; position:absolute; top:0; left:0; }
     <div class="kpi-strip">
       <div class="kpi-box"><div class="kpi-v" id="kpi-b-sessions">0</div><div class="kpi-l">Sessions</div></div>
       <div class="kpi-box"><div class="kpi-v" id="kpi-b-messages">0</div><div class="kpi-l">Messages</div></div>
-      <div class="kpi-box"><div class="kpi-v" id="kpi-b-memories">0</div><div class="kpi-l">Memories</div></div>
-      <div class="kpi-box"><div class="kpi-v" id="kpi-b-projects">0</div><div class="kpi-l">Projects</div></div>
+      <div class="kpi-box"><div class="kpi-v" id="kpi-b-hours">0</div><div class="kpi-l">Hours</div></div>
+      <div class="kpi-box"><div class="kpi-v" id="kpi-b-mb">0</div><div class="kpi-l">MB</div></div>
     </div>
   </div>
   <div class="a-card">
+    <div class="a-title">Activity Heatmap</div>
+    <canvas id="a-chart-heatmap"></canvas>
+  </div>
+  <div class="a-card">
     <div class="a-title">Sessions Over Time</div>
-    <canvas id="a-chart-timeline" height="90"></canvas>
+    <canvas id="a-chart-timeline"></canvas>
   </div>
   <div class="a-card">
     <div class="a-title">Category Breakdown</div>
-    <canvas id="a-chart-categories" height="120"></canvas>
+    <canvas id="a-chart-categories"></canvas>
   </div>
   <div class="a-card">
     <div class="a-title">Top Tools</div>
-    <canvas id="a-chart-tools" height="120"></canvas>
+    <canvas id="a-chart-tools"></canvas>
+  </div>
+  <div class="a-card">
+    <div class="a-title">Session Duration</div>
+    <canvas id="a-chart-quality"></canvas>
   </div>
   <div class="a-card">
     <div class="a-title">Project Coverage</div>
-    <canvas id="a-chart-projects" height="120"></canvas>
+    <canvas id="a-chart-projects"></canvas>
   </div>
 </div>
 
@@ -345,11 +393,18 @@ canvas { display:block; position:absolute; top:0; left:0; }
 <div id="legend-brain">
   <div style="font-size:7px;color:rgba(255,255,255,0.15);margin-bottom:5px;letter-spacing:.1em">NEURON TYPES</div>
   <div class="leg-row"><div class="leg-dot" style="background:#fff"></div>Global / Settings</div>
-  <div class="leg-row"><div class="leg-dot" style="background:#e0e0e0"></div>Project Hub</div>
-  <div class="leg-row"><div class="leg-dot" style="background:#b8b8b8"></div>Memory Index</div>
-  <div class="leg-row"><div class="leg-dot" style="background:#999"></div>Plan / Plugin</div>
-  <div class="leg-row"><div class="leg-dot" style="background:#777"></div>Memory / File</div>
-  <div class="leg-row"><div class="leg-dot" style="background:#444"></div>Chatlog</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#f5a623"></div>Project Hub</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#00c8ff"></div>Memory Index</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#26de81"></div>Memory · User</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#ff7043"></div>Memory · Feedback</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#ffd740"></div>Memory · Project</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#f06292"></div>Memory · Reference</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#ab47bc"></div>Plan</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#80cbc4"></div>Project File</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#69f0ae"></div>MCP Tool</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#7c4dff"></div>Plugin</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#ffca28"></div>Todo</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#ef9a9a"></div>Chatlog</div>
 </div>
 
 <div id="hud"></div>
@@ -426,24 +481,26 @@ composer.addPass(new THREE.ShaderPass({
     }`,
 }));
 
-// ── Monochrome brightness by node type ────────────────────────────
-function nodeBrightness(n) {
-  if (n.nodeType === 'global-instruction') return 1.0;
-  if (n.nodeType === 'settings')           return 0.95;
-  if (n.nodeType === 'project-hub')        return 0.88;
-  if (n.nodeType === 'memory-index')       return 0.82;
-  if (n.nodeType === 'memory')             return 0.72;
-  if (n.nodeType === 'plan')               return 0.68;
-  if (n.nodeType === 'project-file')       return 0.65;
-  if (n.nodeType === 'mcp-tool')           return 0.58;
-  if (n.nodeType === 'plugin')             return 0.62;
-  if (n.nodeType === 'todo')               return 0.55;
-  if (n.nodeType === 'conversation')       return 0.28;
-  return 0.5;
-}
+// ── Node colors by type ───────────────────────────────────────────
 function nodeColor(n) {
-  const b = nodeBrightness(n);
-  return new THREE.Color(b, b, b);
+  if (n.nodeType === 'global-instruction') return new THREE.Color('#ffffff');
+  if (n.nodeType === 'settings')           return new THREE.Color('#d0d0d0');
+  if (n.nodeType === 'project-hub')        return new THREE.Color('#f5a623');
+  if (n.nodeType === 'memory-index')       return new THREE.Color('#00c8ff');
+  if (n.nodeType === 'project-file')       return new THREE.Color('#80cbc4');
+  if (n.nodeType === 'plan')               return new THREE.Color('#ab47bc');
+  if (n.nodeType === 'mcp-tool')           return new THREE.Color('#69f0ae');
+  if (n.nodeType === 'plugin')             return new THREE.Color('#7c4dff');
+  if (n.nodeType === 'todo')               return new THREE.Color('#ffca28');
+  if (n.nodeType === 'conversation')       return new THREE.Color('#ef9a9a');
+  if (n.nodeType === 'memory') {
+    if (n.type === 'user')      return new THREE.Color('#26de81');
+    if (n.type === 'feedback')  return new THREE.Color('#ff7043');
+    if (n.type === 'project')   return new THREE.Color('#ffd740');
+    if (n.type === 'reference') return new THREE.Color('#f06292');
+    return new THREE.Color('#4fc3f7');
+  }
+  return new THREE.Color('#888888');
 }
 
 // ── Brain volume ───────────────────────────────────────────────────
@@ -473,7 +530,7 @@ function neuronR(n) {
   if (n.nodeType==='mcp-tool')           return 2.1;
   if (n.nodeType==='plugin')             return 2.5;
   if (n.nodeType==='todo')               return 1.9;
-  if (n.nodeType==='conversation')       return 1.4;
+  if (n.nodeType==='conversation')       return 2.5;
   return 1.8;
 }
 
@@ -529,14 +586,22 @@ function computeClusterLayout() {
       ;[c.bx,c.by,c.bz]=clamp(hub.bx+Math.sin(cinc)*Math.cos(caz)*dr, hub.by+Math.cos(cinc)*dr*.5, hub.bz+Math.sin(cinc)*Math.sin(caz)*dr);
     });
 
-    // Conversations: 3D sphere around hub — fixed flat Y by using 0.9 multiplier
+    // Conversations: inner sphere in same angular sector as hub (avoids clamp flattening)
     const hubConvs=convNs.filter(c=>c.project===hub.project);
-    hubConvs.forEach((c,ci)=>{
-      const ct=(ci+.5)/Math.max(hubConvs.length,1);
-      const cinc=Math.acos(1-2*ct), caz=az+ci*GOLDEN*(1+hi*.1);
-      const dr=50+(ci%5)*8;
-      ;[c.bx,c.by,c.bz]=clamp(hub.bx+Math.sin(cinc)*Math.cos(caz)*dr, hub.by+Math.cos(cinc)*dr*0.9, hub.bz+Math.sin(cinc)*Math.sin(caz)*dr);
-    });
+    if (hubConvs.length) {
+      // Place cluster centre at ~48% of hub's distance from origin → well inside brain
+      const cx2=Math.sin(inc)*Math.cos(az)*48, cy2=Math.cos(inc)*38, cz2=Math.sin(inc)*Math.sin(az)*48;
+      hubConvs.forEach((c,ci)=>{
+        const ct=(ci+.5)/Math.max(hubConvs.length,1);
+        const cinc2=Math.acos(1-2*ct), caz2=az+ci*GOLDEN;
+        const dr=22+(ci%5)*7;
+        ;[c.bx,c.by,c.bz]=clamp(
+          cx2+Math.sin(cinc2)*Math.cos(caz2)*dr,
+          cy2+Math.cos(cinc2)*dr,
+          cz2+Math.sin(cinc2)*Math.sin(caz2)*dr
+        );
+      });
+    }
   });
 
   // Orphan fallback
@@ -648,7 +713,7 @@ nodes.forEach(n=>{
     color:            col.clone().multiplyScalar(0.12),
     emissive:         col,
     emissiveIntensity:ei,
-    transparent:true, opacity: isConv?0.55:0.9,
+    transparent:true, opacity: isConv?0.8:0.9,
     roughness:0.5, metalness:0.0,
   });
   const mesh=new THREE.Mesh(sphereGeo(r),mat);
@@ -698,20 +763,34 @@ eGeo.setAttribute('color',   new THREE.BufferAttribute(eColArr,3));
 scene.add(new THREE.LineSegments(eGeo,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:0.8,blending:THREE.AdditiveBlending,depthWrite:false})));
 
 // ── Action potentials (white impulses) ─────────────────────────────
+// Speed model: cortex (surface, r≈95) fires fast; core (r≈0) fires slow.
+// Biological range: myelinated axons ~120 m/s, unmyelinated ~0.5 m/s.
+// Here: surfaceSpeed ≈ 0.035 per frame, deepSpeed ≈ 0.006 per frame.
 const AP_POOL   = [];
-const AP_EDGES  = drawEdges.filter(e=>(e.weight||0)>=0.5&&nodeMap[e.source]?.nodeType!=='conversation'&&nodeMap[e.target]?.nodeType!=='conversation');
-const AP_GEO    = new THREE.SphereGeometry(0.9,5,4);
-const AP_MAT    = new THREE.MeshBasicMaterial({color:new THREE.Color(1,1,1),transparent:true,opacity:0.9,blending:THREE.AdditiveBlending,depthWrite:false});
+const AP_EDGES  = drawEdges.filter(e=>(e.weight||0)>=0.4&&nodeMap[e.source]?.nodeType!=='conversation'&&nodeMap[e.target]?.nodeType!=='conversation');
+const AP_GEO    = new THREE.SphereGeometry(0.85,5,4);
+const AP_MAT    = new THREE.MeshBasicMaterial({color:new THREE.Color(1,1,1),transparent:true,opacity:0.92,blending:THREE.AdditiveBlending,depthWrite:false});
 let lastAP=0;
 
+function apDepthSpeed(n) {
+  // Depth factor: 0=core (slow), 1=cortex (fast)
+  const r=Math.sqrt((n.bx||0)**2+(n.by||0)**2+(n.bz||0)**2);
+  const depth=Math.min(r/95,1); // 95 = cortex radius
+  return 0.006 + depth * 0.029 + Math.random() * 0.008;
+}
+
 function fireAP() {
-  if (AP_POOL.length>=30||!AP_EDGES.length) return;
+  if (AP_POOL.length>=50||!AP_EDGES.length) return;
   const e=AP_EDGES[Math.floor(Math.random()*AP_EDGES.length)];
   const src=nodeMap[e.source],tgt=nodeMap[e.target];
   if (!src||!tgt) return;
   const m=new THREE.Mesh(AP_GEO,AP_MAT.clone());
+  // Size reflects edge weight — heavier = brighter/larger
+  const w=Math.min(e.weight||0.5,1);
+  m.scale.setScalar(0.7+w*0.8);
   scene.add(m);
-  AP_POOL.push({m,src,tgt,t:0,speed:.005+Math.random()*.007});
+  const speed=apDepthSpeed(src)*(0.85+w*0.3);
+  AP_POOL.push({m,src,tgt,t:0,speed});
 }
 
 // ── Lights ────────────────────────────────────────────────────────
@@ -721,14 +800,13 @@ const pl=new THREE.PointLight(0xffffff,0.5,600); pl.position.set(0,0,0); scene.a
 // ── Filter State ──────────────────────────────────────────────────
 let activeFilter  = 'all';
 let searchQuery   = '';
-let showConvs     = false;
+let showConvs     = true;
 let activeCategory= 'all';
 let activeThread  = '';
 let activeStatus  = 'all';
 let layoutMode    = 'cluster';
 
-// Conversations hidden by default
-nodes.forEach(n => { if (n.nodeType === 'conversation') n._hidden = true; });
+// Conversations hidden by default (showConvs controls this);
 
 // Shared edge color buffer
 const eColBuf = eGeo.attributes.color;
@@ -742,8 +820,8 @@ function applyFilters() {
 
     let vis = true;
 
-    // Conversation gating
-    if (n._hidden && activeFilter !== 'all' && activeFilter !== 'conversation') vis = false;
+    // Conversation gating — always hide unless toggle is on or user filters to chatlogs explicitly
+    if (n.nodeType === 'conversation' && !showConvs && activeFilter !== 'conversation') vis = false;
 
     // Type filter
     if (vis && activeFilter !== 'all') {
@@ -771,6 +849,17 @@ function applyFilters() {
     // Status filter
     if (vis && activeStatus !== 'all') {
       vis = (n.status || 'active') === activeStatus;
+    }
+
+    // Chart filter (from analytics panel clicks)
+    if (vis && activeChartFilter) {
+      if (activeChartFilter.type === 'categories') {
+        vis = n.nodeType === 'conversation' && (n.category || 'general') === activeChartFilter.label;
+      } else if (activeChartFilter.type === 'tools') {
+        vis = n.nodeType === 'conversation' && (n.toolsUsed || []).includes(activeChartFilter.label);
+      } else if (activeChartFilter.type === 'projects') {
+        vis = cleanProject(n.project) === activeChartFilter.label;
+      }
     }
 
     // Search
@@ -834,7 +923,7 @@ convToggleBtn.addEventListener('click', () => {
   showConvs = !showConvs;
   convToggleBtn.textContent = showConvs ? 'Hide chatlogs' : 'Show chatlogs';
   convToggleBtn.classList.toggle('active', showConvs);
-  nodes.forEach(n => { if (n.nodeType === 'conversation') n._hidden = !showConvs; });
+  // showConvs flag is used directly in applyFilters
   applyFilters();
 });
 
@@ -942,149 +1031,212 @@ function closePanel() {
   }
 }
 
+function formatDuration(start, end) {
+  if (!start || !end) return '—';
+  const ms = new Date(end) - new Date(start);
+  const m = Math.floor(ms / 60000);
+  if (m < 1) return '<1 min';
+  if (m < 60) return m + ' min';
+  const h = Math.floor(m / 60), rm = m % 60;
+  return h + 'h' + (rm ? ' ' + rm + 'm' : '');
+}
+
 function openPanel(n) {
   if (selectedNode) selectedNode._mesh.material.emissiveIntensity = selectedNode._baseEmit;
   selectedNode = n;
   n._mesh.material.emissiveIntensity = n._baseEmit * 3;
 
-  const typeLabel = (n.nodeType||n.type||'').toUpperCase().replace(/-/g,' ');
-  document.getElementById('panel-type').textContent = typeLabel;
+  const hexCol = '#' + nodeColor(n).getHexString();
+
+  // Type badge — colored to match the node
+  const typeMap = {
+    'memory-index':'MEM INDEX','project-file':'CLAUDE.MD','project-hub':'PROJECT HUB',
+    'settings':'SETTINGS','global-instruction':'GLOBAL','plan':'PLAN',
+    'mcp-tool':'MCP TOOL','plugin':'PLUGIN','todo':'TODO','conversation':'CHATLOG',
+    'memory':(n.type||'memory').toUpperCase(),
+  };
+  const typeEl = document.getElementById('panel-type');
+  typeEl.textContent = typeMap[n.nodeType] || (n.nodeType||'').toUpperCase().replace(/-/g,' ');
+  typeEl.style.color = hexCol;
+  typeEl.style.borderColor = hexCol + '55';
+
+  // Category badge
+  const catEl = document.getElementById('panel-cat');
+  if (n.category && CATEGORY_COLORS[n.category]) {
+    const cc = CATEGORY_COLORS[n.category];
+    catEl.textContent = n.category;
+    catEl.style.cssText = `display:inline-block;color:${cc};background:${cc}22;border-color:${cc}44`;
+  } else { catEl.style.display='none'; catEl.textContent=''; }
+
   document.getElementById('panel-name').textContent = n.name || n.id;
   document.getElementById('panel-proj').textContent = cleanProject(n.project);
+
+  // Status
+  const statusColors = { active:'#26de81', archived:'rgba(255,255,255,0.25)', pinned:'#ffca28' };
+  const status = n.status || 'active';
+  document.getElementById('panel-status').innerHTML =
+    `<span style="color:${statusColors[status]||'#666'}">●</span> ${status}`;
+
+  // Tags
+  const tagsEl = document.getElementById('panel-tags');
+  tagsEl.innerHTML = '';
+  (n.tags||[]).forEach(t=>{ const p=document.createElement('span'); p.className='tag-pill'; p.textContent=t; tagsEl.appendChild(p); });
+
+  // Meta line
+  const metaEl = document.getElementById('panel-meta');
+  if (n.nodeType === 'conversation') {
+    const parts = [];
+    if (n.startedAt) parts.push(new Date(n.startedAt).toLocaleString());
+    if (n.startedAt && n.endedAt) parts.push(formatDuration(n.startedAt, n.endedAt));
+    metaEl.textContent = parts.join(' · ');
+  } else {
+    const parts = [];
+    if (n.modifiedAt) parts.push(new Date(n.modifiedAt).toLocaleDateString());
+    if (n.file) parts.push(n.file.split('/').slice(-2).join('/'));
+    metaEl.textContent = parts.join(' · ');
+  }
+
   document.getElementById('panel-desc').textContent = n.description || '';
 
   const content = document.getElementById('panel-content');
   content.innerHTML = '';
 
-  // ── Type-specific stats ──
-  const stats = [];
+  // ── Type-specific content ─────────────────────────────────────────
 
-  if (n.nodeType === 'project-hub') {
-    const members = nodes.filter(x=>x.project===n.project&&x.nodeType!=='project-hub');
-    const convCount = members.filter(x=>x.nodeType==='conversation').length;
-    const memCount  = members.filter(x=>x.nodeType==='memory').length;
-    stats.push(['Project', cleanProject(n.project)]);
-    stats.push(['Sessions', convCount]);
-    stats.push(['Memories', memCount]);
-    stats.push(['Files', members.filter(x=>x.nodeType==='project-file').length]);
-    stats.push(['Tools', members.filter(x=>x.nodeType==='mcp-tool').length]);
-
-  } else if (n.nodeType === 'conversation') {
-    if (n.startedAt) stats.push(['Started', new Date(n.startedAt).toLocaleString()]);
-    if (n.endedAt)   stats.push(['Ended',   new Date(n.endedAt).toLocaleString()]);
-    if (n.messageCount) stats.push(['Messages', n.messageCount]);
-    if (n.category)  stats.push(['Category', n.category]);
-    if (n.gitBranch) stats.push(['Branch', n.gitBranch]);
-    if (n.toolsUsed?.length) stats.push(['Tools', n.toolsUsed.slice(0,5).join(', ')]);
-    if (n.cwd) stats.push(['CWD', n.cwd.replace(/^\/Users\/[^/]+\//,'~/')]);
-
-  } else if (n.nodeType === 'mcp-tool') {
-    if (n.command) stats.push(['Command', n.command]);
-    if (n.args?.length) stats.push(['Args', n.args.join(' ')]);
-    if (n.cwd) stats.push(['Project', n.cwd.replace(/^\/Users\/[^/]+\//,'~/')]);
-    if (n.env && Object.keys(n.env).length) stats.push(['Env', Object.keys(n.env).join(', ')]);
-
-  } else if (n.nodeType === 'plugin') {
-    stats.push(['Plugin ID', n.pluginId || n.name || '—']);
-    stats.push(['Version', n.version || '?']);
-    stats.push(['Scope', n.scope || 'user']);
-    if (n.installedAt) stats.push(['Installed', new Date(n.installedAt).toLocaleDateString()]);
-
-  } else {
-    if (n.modifiedAt) stats.push(['Modified', new Date(n.modifiedAt).toLocaleDateString()]);
-    if (n.file)       stats.push(['File', n.file.split('/').slice(-2).join('/')]);
-    if (n.version)    stats.push(['Version', n.version]);
-    if (n.scope)      stats.push(['Scope', n.scope]);
-    if (n.status)     stats.push(['Status', n.status]);
-  }
-
-  if (stats.length) {
-    const sec=document.createElement('div'); sec.className='panel-section';
-    sec.innerHTML='<div class="panel-label">Details</div>'+
-      stats.map(([k,v])=>`<div class="panel-stat"><span class="k">${k}</span><span class="v">${escHtml(String(v).slice(0,60))}</span></div>`).join('');
-    content.appendChild(sec);
-  }
-
-  // ── Type-specific rich content ──
-  if (n.nodeType === 'todo' && n.items) {
-    const sec=document.createElement('div'); sec.className='panel-section';
-    sec.innerHTML='<div class="panel-label">Todo Items</div>'+
-      (n.items.map(item=>{
-        const icon = item.status==='completed'?'✓':item.status==='in_progress'?'◎':'○';
-        const col  = item.status==='completed'?'rgba(255,255,255,0.55)':item.status==='in_progress'?'rgba(255,255,255,0.7)':'rgba(255,255,255,0.3)';
-        return `<div class="todo-item"><span style="color:${col};flex-shrink:0">${icon}</span><span style="color:rgba(255,255,255,0.45)">${escHtml(item.content||'')}</span></div>`;
-      }).join('')||'<div style="font-size:9px;color:rgba(255,255,255,0.2)">No items</div>');
-    content.appendChild(sec);
-
-  } else if (n.nodeType === 'plan' && n.sections) {
-    const sec=document.createElement('div'); sec.className='panel-section';
-    sec.innerHTML='<div class="panel-label">Sections</div>'+
-      n.sections.map(s=>`<div style="font-size:9px;color:rgba(255,255,255,0.55);padding:2px 0">§ ${escHtml(s)}</div>`).join('');
-    content.appendChild(sec);
-  }
-
-  if (n.nodeType === 'settings' && n.body) {
-    const sec=document.createElement('div'); sec.className='panel-section';
-    let bodyHtml = '';
-    try {
-      const parsed=JSON.parse(n.body);
-      if (parsed.enabledPlugins) {
-        bodyHtml += '<div style="font-size:8px;color:rgba(255,255,255,0.3);margin-bottom:3px">Enabled plugins:</div>';
-        Object.keys(parsed.enabledPlugins).forEach(p=>{ bodyHtml+=`<div style="font-size:9px;color:rgba(255,255,255,0.5);padding:1px 0">▸ ${escHtml(p)}</div>`; });
-      }
-      if (parsed.skipDangerousModePermissionPrompt) bodyHtml+='<div style="font-size:9px;color:rgba(255,100,50,0.8);margin-top:4px">⚠ Dangerous mode enabled</div>';
-    } catch(_) { bodyHtml=`<div class="panel-body">${escHtml((n.body||'').slice(0,400))}</div>`; }
-    sec.innerHTML='<div class="panel-label">Configuration</div>'+bodyHtml;
-    content.appendChild(sec);
-
-  } else if (n.nodeType !== 'conversation' && n.nodeType !== 'todo' && n.body) {
-    const sec=document.createElement('div'); sec.className='panel-section';
-    sec.innerHTML=`<div class="panel-label">Content</div><div class="panel-body">${escHtml(n.body.slice(0,800))}${n.body.length>800?'\n…':''}</div>`;
-    content.appendChild(sec);
-  }
-
-  // For conversations: load messages from API
   if (n.nodeType === 'conversation') {
+    // Metadata grid
+    const grid = document.createElement('div'); grid.className = 'meta-grid';
+    const row = (l,v) => { grid.innerHTML+=`<div class="ml">${l}</div><div class="mv">${escHtml(String(v))}</div>`; };
+    if (n.messageCount) { const u=Math.round(n.messageCount/2); row('Messages',`${n.messageCount} (${u} user, ${n.messageCount-u} asst)`); }
+    row('Duration', formatDuration(n.startedAt, n.endedAt));
+    if (n.turnCount)        row('Turns',    n.turnCount);
+    if (n.fileSize)         row('Size',     (n.fileSize/1048576).toFixed(1)+' MB');
+    if (n.gitBranch)        row('Branch',   n.gitBranch);
+    if (n.toolsUsed?.length) row('Tools',   n.toolsUsed.join(', '));
+    if (n.cwd)              row('CWD',      n.cwd.replace(/^\/Users\/[^/]+\//,'~/'));
+    content.appendChild(grid);
+
+    // Messages from API
     const sec=document.createElement('div'); sec.className='panel-section';
     sec.innerHTML='<div class="panel-label">Messages</div><div id="panel-msgs" style="font-size:9px;color:rgba(255,255,255,.2)">Loading…</div>';
     content.appendChild(sec);
     fetch(`/api/detail?id=${encodeURIComponent(n.sessionId||n.id)}`)
       .then(r=>r.json()).then(data=>{
-        const msgs=data.messages||[];
-        const el=document.getElementById('panel-msgs');
+        const msgs=data.messages||[], el=document.getElementById('panel-msgs');
         if (!el) return;
-        if (!msgs.length){ el.textContent='No messages found.'; return; }
-
-        // Header summary
-        const userMsgs=msgs.filter(m=>m.role==='user');
-        const asstMsgs=msgs.filter(m=>m.role==='assistant');
-        let html=`<div style="font-size:8px;color:rgba(255,255,255,0.2);margin-bottom:6px">${userMsgs.length} prompts · ${asstMsgs.length} responses</div>`;
-
-        // Summary / first message preview
-        if (data.summary) {
-          html+=`<div style="font-size:9px;color:rgba(255,255,255,0.4);line-height:1.6;border-left:1px solid rgba(255,255,255,0.1);padding-left:8px;margin-bottom:8px">${escHtml(data.summary.slice(0,200))}</div>`;
-        }
-
-        msgs.slice(0,20).forEach(m=>{
-          const role=m.role==='user'?'You':'Claude';
-          const text=(m.content||'').slice(0,140);
-          const cls=m.role==='user'?'user':'assistant';
-          html+=`<div class="msg-entry ${cls}"><span class="role">${role}</span> ${escHtml(text)}${(m.content||'').length>140?'…':''}</div>`;
+        if (!msgs.length){ el.textContent='No messages.'; return; }
+        const uM=msgs.filter(m=>m.role==='user'), aM=msgs.filter(m=>m.role==='assistant');
+        let html='';
+        if (data.summary) html+=`<div style="font-size:9px;color:rgba(255,255,255,0.4);line-height:1.6;border-left:2px solid rgba(255,255,255,0.1);padding-left:8px;margin-bottom:10px">${escHtml(data.summary.slice(0,300))}</div>`;
+        html+=`<div style="font-size:8px;color:rgba(255,255,255,0.2);margin-bottom:8px">${uM.length} prompts · ${aM.length} responses</div>`;
+        msgs.slice(0,30).forEach(m=>{
+          const isU=m.role==='user';
+          const label=isU?'▶ You':'◀ Claude'+(m.model?' ('+m.model.split('-').slice(0,3).join('-')+')':'');
+          html+=`<div class="msg-bubble ${m.role}">`;
+          html+=`<div class="msg-role">${label}</div>`;
+          if (m.content) html+=`<div style="font-size:9px;color:rgba(255,255,255,0.45);line-height:1.5">${escHtml(m.content.slice(0,220))}${m.content.length>220?'…':''}</div>`;
+          if (m.tools?.length){
+            html+=`<ul class="tool-list">`;
+            m.tools.forEach(t=>{ html+=`<li class="tool-item"><span class="tool-name">${escHtml(t.tool)}</span>${t.input?`<span class="tool-input">${escHtml(t.input.slice(0,70))}${t.input.length>70?'…':''}</span>`:''}</li>`; });
+            html+=`</ul>`;
+          }
+          const mp=[];
+          if (m.timestamp) mp.push(new Date(m.timestamp).toLocaleTimeString());
+          if (m.gitBranch&&m.gitBranch!=='HEAD') mp.push('⎇ '+m.gitBranch);
+          if (m.inputTokens||m.outputTokens){
+            const tp=[];
+            if(m.inputTokens) tp.push('↑'+(m.inputTokens>1000?(m.inputTokens/1000).toFixed(1)+'K':m.inputTokens));
+            if(m.outputTokens) tp.push('↓'+(m.outputTokens>1000?(m.outputTokens/1000).toFixed(1)+'K':m.outputTokens));
+            mp.push(tp.join(' ')+' tok');
+          }
+          if (mp.length) html+=`<div class="msg-meta">${mp.join(' · ')}</div>`;
+          html+=`</div>`;
         });
-        if (msgs.length>20) html+=`<div class="msg-entry" style="color:rgba(255,255,255,.12)">+ ${msgs.length-20} more messages</div>`;
+        if (msgs.length>30) html+=`<div style="font-size:8px;color:rgba(255,255,255,.12);padding:4px 0">+ ${msgs.length-30} more</div>`;
         el.innerHTML=html;
       }).catch(()=>{ const el=document.getElementById('panel-msgs'); if(el) el.textContent='—'; });
+
+  } else if (n.nodeType === 'project-hub') {
+    const members=nodes.filter(x=>x.project===n.project&&x.nodeType!=='project-hub');
+    const counts={}; members.forEach(x=>{ counts[x.nodeType]=(counts[x.nodeType]||0)+1; });
+    const grid=document.createElement('div'); grid.className='meta-grid';
+    Object.entries(counts).sort((a,b)=>b[1]-a[1]).forEach(([type,count])=>{
+      const col='#'+nodeColor({nodeType:type,type:type}).getHexString();
+      grid.innerHTML+=`<div class="ml" style="color:${col}">${type.replace(/-/g,' ')}</div><div class="mv">${count}</div>`;
+    });
+    content.appendChild(grid);
+
+  } else if (n.nodeType === 'plan') {
+    if (n.sections?.length){
+      const sec=document.createElement('div'); sec.className='panel-section';
+      sec.innerHTML='<div class="panel-label">Sections</div>'+n.sections.map(s=>`<div style="font-size:9px;color:rgba(255,255,255,0.55);padding:2px 0">§ ${escHtml(s)}</div>`).join('');
+      content.appendChild(sec);
+    }
+    if (n.body){
+      const sec=document.createElement('div'); sec.className='panel-section';
+      sec.innerHTML=`<div class="panel-label">Content</div><div class="panel-body">${escHtml(n.body.slice(0,1000))}${n.body.length>1000?'\n…':''}</div>`;
+      content.appendChild(sec);
+    }
+
+  } else if (n.nodeType === 'mcp-tool') {
+    const grid=document.createElement('div'); grid.className='meta-grid';
+    const row=(l,v)=>{ grid.innerHTML+=`<div class="ml">${l}</div><div class="mv">${escHtml(String(v))}</div>`; };
+    if(n.command)                   row('Command', n.command);
+    if(n.args?.length)              row('Args',    n.args.join(' '));
+    if(n.cwd)                       row('Project', n.cwd.replace(/^\/Users\/[^/]+\//,'~/'));
+    if(n.env&&Object.keys(n.env).length) row('Env', Object.keys(n.env).join(', '));
+    content.appendChild(grid);
+    if(n.body){
+      const sec=document.createElement('div'); sec.className='panel-section';
+      sec.innerHTML=`<div class="panel-label">Config</div><div class="panel-body" style="font-family:monospace;font-size:9px">${escHtml(n.body.slice(0,500))}</div>`;
+      content.appendChild(sec);
+    }
+
+  } else if (n.nodeType === 'plugin') {
+    const grid=document.createElement('div'); grid.className='meta-grid';
+    const row=(l,v)=>{ grid.innerHTML+=`<div class="ml">${l}</div><div class="mv">${escHtml(String(v))}</div>`; };
+    row('Plugin ID', n.pluginId||n.name||'—');
+    row('Version',   n.version||'?');
+    row('Scope',     n.scope||'user');
+    if(n.installedAt) row('Installed', new Date(n.installedAt).toLocaleDateString());
+    content.appendChild(grid);
+
+  } else if (n.nodeType === 'todo') {
+    const sec=document.createElement('div'); sec.className='panel-section';
+    const items=n.items||[];
+    sec.innerHTML='<div class="panel-label">Items</div>'+(items.map(item=>{
+      const icon=item.status==='completed'?'✓':item.status==='in_progress'?'◎':'○';
+      const col =item.status==='completed'?'#26de81':item.status==='in_progress'?'#ffca28':'rgba(255,255,255,0.3)';
+      return `<div class="todo-item"><span style="color:${col};flex-shrink:0">${icon}</span><span style="color:rgba(255,255,255,0.45)">${escHtml(item.content||'')}</span></div>`;
+    }).join('')||'<div style="font-size:9px;color:rgba(255,255,255,0.2)">No items</div>');
+    content.appendChild(sec);
+
+  } else if (n.nodeType === 'settings' && n.body) {
+    const sec=document.createElement('div'); sec.className='panel-section';
+    let bodyHtml='';
+    try {
+      const parsed=JSON.parse(n.body);
+      if(parsed.enabledPlugins){ bodyHtml+='<div style="font-size:8px;color:rgba(255,255,255,0.3);margin-bottom:3px">Enabled plugins:</div>'; Object.keys(parsed.enabledPlugins).forEach(p=>{ bodyHtml+=`<div style="font-size:9px;color:rgba(255,255,255,0.5);padding:1px 0">▸ ${escHtml(p)}</div>`; }); }
+      if(parsed.skipDangerousModePermissionPrompt) bodyHtml+='<div style="font-size:9px;color:rgba(255,100,50,0.8);margin-top:4px">⚠ Dangerous mode enabled</div>';
+    } catch(_){ bodyHtml=`<div class="panel-body">${escHtml((n.body||'').slice(0,400))}</div>`; }
+    sec.innerHTML='<div class="panel-label">Configuration</div>'+bodyHtml;
+    content.appendChild(sec);
+
+  } else if (n.body) {
+    const sec=document.createElement('div'); sec.className='panel-section';
+    sec.innerHTML=`<div class="panel-label">Content</div><div class="panel-body">${escHtml(n.body.slice(0,800))}${n.body.length>800?'\n…':''}</div>`;
+    content.appendChild(sec);
   }
 
   // Connected neurons
-  const connIds = edges.filter(e=>e.source===n.id||e.target===n.id)
+  const connIds=edges.filter(e=>e.source===n.id||e.target===n.id)
     .map(e=>e.source===n.id?e.target:e.source)
     .filter(id=>{ const x=nodeMap[id]; return x&&x.nodeType!=='conversation'; })
     .slice(0,8);
-  if (connIds.length) {
+  if (connIds.length){
     const sec=document.createElement('div'); sec.className='panel-section';
     sec.innerHTML='<div class="panel-label">Connected</div>'+
-      connIds.map(id=>{ const x=nodeMap[id]; return `<div class="panel-stat"><span class="k">${(x.nodeType||'').replace('-',' ')}</span><span class="v">${escHtml(x.name||id)}</span></div>`; }).join('');
+      connIds.map(id=>{ const x=nodeMap[id]; const c='#'+nodeColor(x).getHexString(); return `<div class="panel-stat"><span class="k" style="color:${c}">${(x.nodeType||'').replace(/-/g,' ')}</span><span class="v">${escHtml(x.name||id)}</span></div>`; }).join('');
     content.appendChild(sec);
   }
 
@@ -1136,166 +1288,184 @@ window.addEventListener('click', e=>{
 
 // ── Analytics ─────────────────────────────────────────────────────
 let analyticsOpen = false;
-
-function toggleAnalytics() {
-  analyticsOpen = !analyticsOpen;
-  document.getElementById('analytics-brain').classList.toggle('open', analyticsOpen);
-  document.getElementById('analytics-toggle-brain').classList.toggle('active', analyticsOpen);
-  if (analyticsOpen) renderAnalytics();
-}
-
-function closeAnalytics() {
-  analyticsOpen = false;
-  document.getElementById('analytics-brain').classList.remove('open');
-  document.getElementById('analytics-toggle-brain').classList.remove('active');
-}
-
-document.getElementById('analytics-toggle-brain').addEventListener('click', toggleAnalytics);
+let activeChartFilter = null;
+const _bindState = {};
 
 const chartTooltipEl = document.getElementById('chart-tooltip-brain');
+function showChartTip(e,html){chartTooltipEl.innerHTML=html;chartTooltipEl.style.display='block';chartTooltipEl.style.left=Math.min(e.clientX+12,window.innerWidth-230)+'px';chartTooltipEl.style.top=Math.min(e.clientY-10,window.innerHeight-60)+'px';}
+function hideChartTip(){chartTooltipEl.style.display='none';}
 
-function showChartTip(e, html) {
-  chartTooltipEl.innerHTML = html;
-  chartTooltipEl.style.display = 'block';
-  chartTooltipEl.style.left = Math.min(e.clientX+10, window.innerWidth-210)+'px';
-  chartTooltipEl.style.top  = Math.min(e.clientY-8,  window.innerHeight-50)+'px';
+const CHART_W = 264;
+
+function setupCanvas(id, height) {
+  const canvas = document.getElementById(id); if (!canvas) return null;
+  const dpr=window.devicePixelRatio||1, w=CHART_W;
+  canvas.style.width=w+'px'; canvas.style.height=height+'px';
+  canvas.width=w*dpr; canvas.height=height*dpr;
+  const ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr);
+  return {ctx,w,h:height};
 }
-function hideChartTip() { chartTooltipEl.style.display='none'; }
 
-function drawBarChart(canvasId, entries, colorFn, maxH) {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas || !entries.length) return;
-  const dpr = window.devicePixelRatio||1;
-  const w = canvas.offsetWidth || canvas.parentElement.offsetWidth || 320;
-  canvas.width  = w * dpr;
-  canvas.height = maxH * dpr;
-  canvas.style.width  = w + 'px';
-  canvas.style.height = maxH + 'px';
-  const ctx = canvas.getContext('2d');
-  ctx.scale(dpr, dpr);
+function lerpColor(t){const r=Math.round(10+(0-10)*t),g=Math.round(15+(210-15)*t),b=Math.round(20+(255-20)*t);return `rgb(${r},${g},${b})`;}
 
-  const barH = Math.floor(maxH / entries.length);
-  const labelW = 100;
-  const countW = 28;
-  const barW = w - labelW - countW - 4;
-  const maxVal = Math.max(...entries.map(e=>e[1]), 1);
-
-  ctx.font = '9px SF Mono, Fira Code, monospace';
-  entries.forEach(([label, val], i) => {
-    const y = i * barH;
-    ctx.fillStyle = 'rgba(255,255,255,0.25)';
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'middle';
-    const shortLabel = label.length>14 ? label.slice(0,6)+'…'+label.slice(-5) : label;
-    ctx.fillText(shortLabel, labelW-4, y + barH/2);
-
-    const bw = (val/maxVal)*barW;
-    ctx.fillStyle = typeof colorFn==='function' ? colorFn(label) : (colorFn || 'rgba(255,255,255,0.25)');
-    ctx.fillRect(labelW, y+2, bw, barH-4);
-
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.textAlign = 'left';
-    ctx.fillText(val, labelW+bw+4, y+barH/2);
-  });
-
-  // Hit regions for tooltip
-  canvas._hitRegions = entries.map(([label,val],i)=>({y:i*barH,h:barH,label,val}));
-  if (!canvas._listenersAttached) {
-    canvas._listenersAttached = true;
-    canvas.addEventListener('mousemove', function(e) {
-      const rect=canvas.getBoundingClientRect();
-      const my=e.clientY-rect.top;
-      const hit=(canvas._hitRegions||[]).find(r=>my>=r.y&&my<r.y+r.h);
-      if (hit) {
-        canvas.style.cursor='pointer';
-        showChartTip(e, `<strong style="color:#fff">${hit.label}</strong>: ${hit.val}`);
-      } else {
-        canvas.style.cursor='default';
-        hideChartTip();
+function computeAnalytics() {
+  let totalMessages=0,totalMs=0,totalBytes=0,sessionCount=0;
+  const heatmap=Array.from({length:7},()=>new Array(24).fill(0));
+  const now=Date.now(),weeklyMap={},categories={},tools={};
+  const buckets={'<1m':0,'1-5m':0,'5-30m':0,'30m-2h':0,'>2h':0},projects={};
+  nodes.forEach(n=>{
+    if(n.nodeType!=='conversation')return;
+    sessionCount++; totalMessages+=n.messageCount||0; totalBytes+=n.fileSize||0;
+    if(n.startedAt&&n.endedAt){
+      const ms=new Date(n.endedAt)-new Date(n.startedAt); totalMs+=ms;
+      const mins=ms/60000;
+      if(mins<1)buckets['<1m']++;else if(mins<5)buckets['1-5m']++;else if(mins<30)buckets['5-30m']++;else if(mins<120)buckets['30m-2h']++;else buckets['>2h']++;
+    }
+    if(n.startedAt){
+      const d=new Date(n.startedAt);
+      heatmap[d.getDay()][d.getHours()]++;
+      if(now-d.getTime()<=90*86400000){
+        const ws=new Date(d);ws.setDate(d.getDate()-d.getDay());
+        const key=ws.toISOString().slice(0,10);weeklyMap[key]=(weeklyMap[key]||0)+1;
       }
-    });
-    canvas.addEventListener('mouseleave', hideChartTip);
+    }
+    categories[n.category||'general']=(categories[n.category||'general']||0)+1;
+    (n.toolsUsed||[]).forEach(t=>{tools[t]=(tools[t]||0)+1;});
+    const proj=cleanProject(n.project);projects[proj]=(projects[proj]||0)+1;
+  });
+  const weeklyTrend=Object.entries(weeklyMap).sort((a,b)=>a[0].localeCompare(b[0]));
+  const topProjects=Object.entries(projects).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  return{sessions:sessionCount,totalMessages,totalHours:totalMs/3600000,totalMB:totalBytes/1048576,heatmap,weeklyTrend,categories,tools,buckets,topProjects};
+}
+
+function drawHeatmap(data) {
+  const r=setupCanvas('a-chart-heatmap',120);if(!r)return;
+  const{ctx,w,h}=r;
+  const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const labelW=30,cellW=(w-labelW)/24,cellH=h/7;
+  let maxVal=1;data.heatmap.forEach(row=>row.forEach(v=>{if(v>maxVal)maxVal=v;}));
+  ctx.font='8px SF Mono,monospace';ctx.textAlign='right';ctx.textBaseline='middle';
+  for(let d=0;d<7;d++){
+    ctx.fillStyle='rgba(255,255,255,0.3)';ctx.fillText(days[d],labelW-4,d*cellH+cellH/2);
+    for(let hr=0;hr<24;hr++){
+      const t=data.heatmap[d][hr]/maxVal;ctx.fillStyle=lerpColor(t);
+      ctx.fillRect(labelW+hr*cellW+1,d*cellH+1,cellW-2,cellH-2);
+      if(data.heatmap[d][hr]>0){
+        ctx.fillStyle=t>0.5?'#000':'rgba(255,255,255,0.7)';
+        ctx.textAlign='center';ctx.font='7px SF Mono,monospace';
+        ctx.fillText(data.heatmap[d][hr],labelW+hr*cellW+cellW/2,d*cellH+cellH/2);
+        ctx.textAlign='right';ctx.font='8px SF Mono,monospace';
+      }
+    }
+  }
+  ctx.fillStyle='rgba(255,255,255,0.2)';ctx.textAlign='center';ctx.font='7px SF Mono,monospace';
+  for(let hr=0;hr<24;hr+=3)ctx.fillText(hr+'',labelW+hr*cellW+cellW/2,h-2);
+  const canvas=document.getElementById('a-chart-heatmap');canvas._heatData=data.heatmap;
+  if(!_bindState['a-chart-heatmap']){
+    _bindState['a-chart-heatmap']=true;
+    const dFull=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const dAbbr=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    function getCell(e){const rect=canvas.getBoundingClientRect(),mx=e.clientX-rect.left,my=e.clientY-rect.top;const cW=(rect.width-labelW)/24,cH=120/7;const day=Math.floor(my/cH),hr=Math.floor((mx-labelW)/cW);if(day>=0&&day<7&&hr>=0&&hr<24&&mx>=labelW)return{day,hr};return null;}
+    canvas.addEventListener('mousemove',function(e){const c=getCell(e);if(c){const v=(canvas._heatData||[])[c.day]?.[c.hr]||0;canvas.style.cursor=v>0?'pointer':'default';showChartTip(e,`<strong>${dFull[c.day]} ${c.hr}:00</strong><br>${v} sessions`);}else{canvas.style.cursor='default';hideChartTip();}});
+    canvas.addEventListener('mouseleave',()=>{canvas.style.cursor='default';hideChartTip();});
   }
 }
 
-function drawTimelineChart(canvasId, weeklyData, maxH) {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return;
-  const dpr = window.devicePixelRatio||1;
-  const w = canvas.offsetWidth || canvas.parentElement.offsetWidth || 320;
-  canvas.width  = w * dpr;
-  canvas.height = maxH * dpr;
-  canvas.style.width  = w + 'px';
-  canvas.style.height = maxH + 'px';
-  const ctx = canvas.getContext('2d');
-  ctx.scale(dpr, dpr);
+function drawTimeline(data) {
+  const r=setupCanvas('a-chart-timeline',100);if(!r)return;
+  const{ctx,w,h}=r;
+  if(data.weeklyTrend.length<2){ctx.fillStyle='rgba(255,255,255,0.2)';ctx.font='10px SF Mono,monospace';ctx.textAlign='center';ctx.fillText('Not enough data',w/2,h/2);return;}
+  const maxVal=Math.max(...data.weeklyTrend.map(d=>d[1]),1);
+  const pad={l:28,r:8,t:8,b:16},pw=w-pad.l-pad.r,ph=h-pad.t-pad.b;
+  ctx.beginPath();ctx.moveTo(pad.l,pad.t+ph);
+  data.weeklyTrend.forEach(([,v],i)=>{const x=pad.l+(i/(data.weeklyTrend.length-1))*pw,y=pad.t+ph-(v/maxVal)*ph;ctx.lineTo(x,y);});
+  ctx.lineTo(pad.l+pw,pad.t+ph);ctx.closePath();
+  const grad=ctx.createLinearGradient(0,pad.t,0,pad.t+ph);grad.addColorStop(0,'rgba(0,210,255,0.25)');grad.addColorStop(1,'rgba(0,210,255,0.02)');ctx.fillStyle=grad;ctx.fill();
+  ctx.beginPath();data.weeklyTrend.forEach(([,v],i)=>{const x=pad.l+(i/(data.weeklyTrend.length-1))*pw,y=pad.t+ph-(v/maxVal)*ph;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});
+  ctx.strokeStyle='rgba(0,210,255,0.85)';ctx.lineWidth=1.5;ctx.stroke();
+  ctx.fillStyle='rgba(255,255,255,0.25)';ctx.font='8px SF Mono,monospace';ctx.textAlign='right';ctx.fillText(maxVal,pad.l-4,pad.t+8);ctx.fillText('0',pad.l-4,pad.t+ph);
+  ctx.textAlign='center';const step=Math.max(1,Math.floor(data.weeklyTrend.length/4));
+  for(let i=0;i<data.weeklyTrend.length;i+=step){const x=pad.l+(i/(data.weeklyTrend.length-1))*pw;ctx.fillText(data.weeklyTrend[i][0].slice(5),x,h-2);}
+}
 
-  const weeks = Object.keys(weeklyData).sort();
-  if (!weeks.length) return;
-  const maxVal = Math.max(...Object.values(weeklyData), 1);
-  const bw = w / weeks.length;
+function smartTrunc(s,n){if(s.length<=n)return s;const h=Math.floor((n-1)/2);return s.slice(0,h)+'…'+s.slice(-(n-h-1));}
 
-  ctx.fillStyle = 'rgba(255,255,255,0.08)';
-  weeks.forEach((wk, i) => {
-    const val = weeklyData[wk];
-    const bh = (val/maxVal) * (maxH - 14);
-    ctx.fillRect(i*bw+1, maxH-14-bh, bw-2, bh);
+function drawHorizontalBars(canvasId, entries, height, colorFn, chartType) {
+  const r=setupCanvas(canvasId,height);if(!r||!entries.length)return;
+  const{ctx,w,h}=r;
+  const maxVal=Math.max(...entries.map(e=>e[1]),1);
+  const total=entries.reduce((s,e)=>s+e[1],0);
+  const barH=Math.min(16,(h-4)/entries.length);
+  ctx.font='9px SF Mono,monospace';
+  const labelW=Math.min(ctx.measureText('W'.repeat(14)).width+8,w*0.45);
+  const countW=32,barW=w-labelW-countW-8;
+  const canvas=document.getElementById(canvasId);
+  const hovIdx=canvas._hoveredIndex!==undefined?canvas._hoveredIndex:-1;
+  entries.forEach(([label,val],i)=>{
+    const y=i*barH+2,isH=i===hovIdx;
+    ctx.fillStyle=isH?'rgba(255,255,255,0.9)':'rgba(255,255,255,0.4)';ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.fillText(smartTrunc(label,18),labelW-4,y+barH/2);
+    const bw=(val/maxVal)*barW;ctx.globalAlpha=isH?1:0.85;
+    ctx.fillStyle=typeof colorFn==='function'?colorFn(label):(colorFn||'rgba(255,255,255,0.3)');ctx.fillRect(labelW,y+2,bw,barH-4);
+    if(isH){ctx.fillStyle='rgba(255,255,255,0.15)';ctx.fillRect(labelW,y+2,bw,barH-4);}
+    ctx.globalAlpha=1;ctx.fillStyle=isH?'rgba(255,255,255,0.9)':'rgba(255,255,255,0.35)';ctx.textAlign='left';ctx.fillText(val,labelW+bw+4,y+barH/2);
   });
+  canvas._hitRegions=entries.map(([label,val],i)=>({y:i*barH+2,h:barH,label,val}));
+  canvas._chartType=chartType;canvas._total=total;
+  if(!_bindState[canvasId]){
+    _bindState[canvasId]=true;canvas._hoveredIndex=-1;
+    canvas.addEventListener('click',function(e){const rect=canvas.getBoundingClientRect(),my=e.clientY-rect.top;const hit=(canvas._hitRegions||[]).find(r=>my>=r.y&&my<r.y+r.h);if(hit&&canvas._chartType){activeChartFilter=(activeChartFilter?.type===canvas._chartType&&activeChartFilter?.label===hit.label)?null:{type:canvas._chartType,label:hit.label};applyFilters();}});
+    canvas.addEventListener('mousemove',function(e){const rect=canvas.getBoundingClientRect(),my=e.clientY-rect.top;const regions=canvas._hitRegions||[];const idx=regions.findIndex(r=>my>=r.y&&my<r.y+r.h);canvas.style.cursor=idx>=0?'pointer':'default';if(idx>=0){const hit=regions[idx];const pct=((hit.val/(canvas._total||1))*100).toFixed(1);showChartTip(e,`<strong style="color:#fff">${hit.label}</strong>: ${hit.val} (${pct}%)`);}else hideChartTip();if(idx!==canvas._hoveredIndex){canvas._hoveredIndex=idx;renderAnalytics();}});
+    canvas.addEventListener('mouseleave',function(){canvas.style.cursor='default';canvas._hoveredIndex=-1;hideChartTip();renderAnalytics();});
+  }
+}
 
-  // x-axis labels (every 4th)
-  ctx.fillStyle='rgba(255,255,255,0.2)'; ctx.font='8px monospace'; ctx.textAlign='center';
-  weeks.forEach((wk,i)=>{
-    if (i%4===0) ctx.fillText(wk.slice(5), i*bw+bw/2, maxH-2);
+function drawHistogram(data) {
+  const r=setupCanvas('a-chart-quality',100);if(!r)return;
+  const{ctx,w,h}=r;
+  const entries=Object.entries(data.buckets),maxVal=Math.max(...entries.map(e=>e[1]),1);
+  const pad={l:8,r:8,t:8,b:20},pw=w-pad.l-pad.r,ph=h-pad.t-pad.b,bw=pw/entries.length;
+  const colors=['#ff4444','#ff8800','rgba(0,210,255,0.8)','#26de81','#a55eea'];
+  entries.forEach(([label,val],i)=>{
+    const bh=(val/maxVal)*ph,x=pad.l+i*bw+4,y=pad.t+ph-bh;
+    ctx.fillStyle=colors[i]||'rgba(255,255,255,0.4)';ctx.globalAlpha=0.65;ctx.fillRect(x,y,bw-8,bh);ctx.globalAlpha=1;
+    ctx.fillStyle='rgba(255,255,255,0.55)';ctx.font='9px SF Mono,monospace';ctx.textAlign='center';
+    if(val>0)ctx.fillText(val,x+(bw-8)/2,y-4);
+    ctx.fillStyle='rgba(255,255,255,0.3)';ctx.font='8px SF Mono,monospace';ctx.fillText(label,x+(bw-8)/2,h-4);
   });
 }
 
 function renderAnalytics() {
-  const convs = nodes.filter(n=>n.nodeType==='conversation');
-  const mems  = nodes.filter(n=>['user','feedback','project','reference'].includes(n.type));
-
-  // KPIs
-  document.getElementById('kpi-b-sessions').textContent  = convs.length;
-  document.getElementById('kpi-b-messages').textContent  = convs.reduce((s,n)=>s+(n.messageCount||0),0);
-  document.getElementById('kpi-b-memories').textContent  = mems.length;
-  document.getElementById('kpi-b-projects').textContent  = hubNs.length;
-
-  // Timeline
-  const weeklyMap = {};
-  convs.forEach(n=>{
-    if (!n.startedAt) return;
-    const d=new Date(n.startedAt);
-    const wk=new Date(d - d.getDay()*86400000).toISOString().slice(0,10);
-    weeklyMap[wk]=(weeklyMap[wk]||0)+1;
-  });
-  drawTimelineChart('a-chart-timeline', weeklyMap, 90);
-
-  // Categories
-  const catMap={};
-  convs.forEach(n=>{ if(n.category) catMap[n.category]=(catMap[n.category]||0)+1; });
-  const catEntries = Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  if (catEntries.length) {
-    document.getElementById('a-chart-categories').height = catEntries.length * 16;
-    drawBarChart('a-chart-categories', catEntries, lbl=>(CATEGORY_COLORS[lbl]||'#666')+'88', catEntries.length*16);
-  }
-
-  // Tools
-  const toolMap={};
-  convs.forEach(n=>{ (n.toolsUsed||[]).forEach(t=>{toolMap[t]=(toolMap[t]||0)+1;}); });
-  const toolEntries=Object.entries(toolMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  if (toolEntries.length) {
-    document.getElementById('a-chart-tools').height = toolEntries.length * 16;
-    drawBarChart('a-chart-tools', toolEntries, 'rgba(165,120,255,0.5)', toolEntries.length*16);
-  }
-
-  // Projects
-  const projMap={};
-  convs.forEach(n=>{ const p=cleanProject(n.project); projMap[p]=(projMap[p]||0)+1; });
-  const projEntries=Object.entries(projMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  if (projEntries.length) {
-    document.getElementById('a-chart-projects').height = projEntries.length * 16;
-    drawBarChart('a-chart-projects', projEntries, 'rgba(255,255,255,0.25)', projEntries.length*16);
-  }
+  const d=computeAnalytics();
+  document.getElementById('kpi-b-sessions').textContent=d.sessions.toLocaleString();
+  document.getElementById('kpi-b-messages').textContent=d.totalMessages>999?(d.totalMessages/1000).toFixed(1)+'K':d.totalMessages;
+  document.getElementById('kpi-b-hours').textContent=d.totalHours.toFixed(1);
+  document.getElementById('kpi-b-mb').textContent=d.totalMB.toFixed(1);
+  drawHeatmap(d);
+  drawTimeline(d);
+  const catEntries=Object.entries(d.categories).sort((a,b)=>b[1]-a[1]);
+  drawHorizontalBars('a-chart-categories',catEntries,Math.max(catEntries.length,1)*16+4,lbl=>(CATEGORY_COLORS[lbl]||'#666')+'aa','categories');
+  const toolEntries=Object.entries(d.tools).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  drawHorizontalBars('a-chart-tools',toolEntries,Math.max(toolEntries.length,1)*16+4,'rgba(165,94,234,0.65)','tools');
+  drawHistogram(d);
+  drawHorizontalBars('a-chart-projects',d.topProjects,Math.max(d.topProjects.length,1)*16+4,'rgba(0,210,255,0.45)','projects');
 }
+
+function toggleAnalytics() {
+  analyticsOpen=!analyticsOpen;
+  document.getElementById('analytics-brain').classList.toggle('open',analyticsOpen);
+  document.getElementById('analytics-toggle-brain').classList.toggle('active',analyticsOpen);
+  if(analyticsOpen)setTimeout(renderAnalytics,420);
+}
+
+function closeAnalytics() {
+  analyticsOpen=false;
+  document.getElementById('analytics-brain').classList.remove('open');
+  document.getElementById('analytics-toggle-brain').classList.remove('active');
+}
+
+document.getElementById('analytics-toggle-brain').addEventListener('click',toggleAnalytics);
+
 
 // HUD
 document.getElementById('hud').textContent =
@@ -1342,8 +1512,12 @@ let frame=0;
     n._mesh.material.emissiveIntensity = n._baseEmit + Math.sin(t*1.1+phase)*.15*n._baseEmit;
   });
 
-  // Action potentials
-  if (frame-lastAP>8+Math.floor(Math.random()*12)){ fireAP(); lastAP=frame; }
+  // Action potentials — fire bursts like real neural activity
+  if (frame-lastAP>3+Math.floor(Math.random()*7)){
+    fireAP();
+    if (Math.random()<0.35) fireAP(); // occasional burst of 2
+    lastAP=frame;
+  }
   for (let i=AP_POOL.length-1;i>=0;i--){
     const ap=AP_POOL[i]; ap.t+=ap.speed;
     if (ap.t>=1){
