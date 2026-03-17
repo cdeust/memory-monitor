@@ -297,7 +297,9 @@
   }
   .legend-item { display: flex; align-items: center; gap: 6px; }
   .legend-dot { width: 6px; height: 6px; border-radius: 50%; box-shadow: 0 0 6px currentColor; }
-  .legend-hex { width: 7px; height: 6px; background: #ff4081; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); }
+  .legend-hex     { width: 7px; height: 6px; background: #ff4081; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); }
+  .legend-diamond { width: 7px; height: 7px; clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); box-shadow: 0 0 6px currentColor; }
+  .legend-square  { width: 6px; height: 6px; box-shadow: 0 0 6px currentColor; }
   .legend-cat { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.03); max-width: 200px; }
 
   /* Status indicator */
@@ -427,8 +429,14 @@
     <button class="filter-btn" data-type="feedback" style="--type-color:#ff6b35">Feedback</button>
     <button class="filter-btn" data-type="project" style="--type-color:#26de81">Project</button>
     <button class="filter-btn" data-type="reference" style="--type-color:#a55eea">Reference</button>
-    <button class="filter-btn" data-type="conversation" style="--type-color:#ff4081">Conv</button>
+    <button class="filter-btn" data-type="memory-index" style="--type-color:#ffd600">Mem Index</button>
+    <button class="filter-btn" data-type="project-file" style="--type-color:#ff78dc">Proj File</button>
+    <button class="filter-btn" data-type="project-hub" style="--type-color:#dce6ff">Hubs</button>
+    <button class="filter-btn" data-type="settings" style="--type-color:#ffb300">Settings</button>
+    <button class="filter-btn" data-type="__global__" style="--type-color:#29b6f6">Global</button>
+    <button class="filter-btn" data-type="conversation" style="--type-color:#ff4081">Chatlogs</button>
   </div>
+  <button class="filter-btn" id="conv-toggle" style="--type-color:#ff4081;margin-top:4px;width:100%;text-align:left" title="Toggle chatlog visibility">Hide chatlogs</button>
   <button class="layout-toggle" id="layout-toggle" title="Toggle timeline/cluster layout (T)">Cluster</button>
   <button class="analytics-toggle" id="analytics-toggle" title="Analytics dashboard (A)">Analytics</button>
   <div class="stats" id="stats-bar"></div>
@@ -501,11 +509,18 @@
 <div id="chart-tooltip"></div>
 
 <div id="legend">
-  <div class="legend-item"><div class="legend-dot" style="background:#00d2ff"></div>User</div>
+  <div style="font-size:9px;color:#3a4a5a;margin-bottom:6px;letter-spacing:0.05em">KNOWLEDGE NODES</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#dce6ff;box-shadow:0 0 8px #dce6ff"></div>Project Hub</div>
+  <div class="legend-item"><div class="legend-diamond" style="background:#29b6f6"></div>Global (CLAUDE.md)</div>
+  <div class="legend-item"><div class="legend-square" style="background:#ffb300"></div>Settings</div>
+  <div class="legend-item"><div class="legend-diamond" style="background:#ffd600"></div>Memory Index</div>
+  <div class="legend-item"><div class="legend-square" style="background:#ff78dc"></div>CLAUDE.md</div>
+  <div style="font-size:9px;color:#3a4a5a;margin:6px 0 4px;letter-spacing:0.05em">MEMORIES</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#00d2ff"></div>User pref</div>
   <div class="legend-item"><div class="legend-dot" style="background:#ff6b35"></div>Feedback</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#26de81"></div>Project</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#26de81"></div>Project ctx</div>
   <div class="legend-item"><div class="legend-dot" style="background:#a55eea"></div>Reference</div>
-  <div class="legend-item"><div class="legend-hex"></div>Conversation</div>
+  <div class="legend-item"><div class="legend-hex" style="opacity:0.4"></div><span style="opacity:0.5">Chatlogs (hidden)</span></div>
   <div class="legend-cat" id="legend-categories"></div>
 </div>
 
@@ -534,21 +549,34 @@ var ShaderPass = THREE.ShaderPass;
 // ═══════════════════════════════════════════════════════════════════
 
 const TYPE_COLORS_RGB = {
-  user:         { r: 0,   g: 210, b: 255 },
-  feedback:     { r: 255, g: 107, b: 53  },
-  project:      { r: 38,  g: 222, b: 129 },
-  reference:    { r: 165, g: 94,  b: 234 },
-  conversation: { r: 255, g: 64,  b: 129 },
-  unknown:      { r: 99,  g: 110, b: 114 },
+  // Memory types — the knowledge Claude carries
+  user:               { r: 0,   g: 210, b: 255 },  // cyan
+  feedback:           { r: 255, g: 107, b: 53  },  // orange
+  project:            { r: 38,  g: 222, b: 129 },  // green
+  reference:          { r: 165, g: 94,  b: 234 },  // purple
+  // Structural / contextual
+  'memory-index':     { r: 255, g: 214, b: 0   },  // gold
+  'project-file':     { r: 255, g: 120, b: 220 },  // pink-purple
+  'project-hub':      { r: 220, g: 230, b: 255 },  // silver-white
+  settings:           { r: 255, g: 179, b: 0   },  // amber
+  'global-instruction': { r: 41,  g: 182, b: 246 },  // sky blue
+  // Actions (de-emphasised)
+  conversation:       { r: 255, g: 64,  b: 129 },  // pink
+  unknown:            { r: 99,  g: 110, b: 114 },
 };
 
 const TYPE_COLORS = {
-  user:         new THREE.Color(0x00d2ff),
-  feedback:     new THREE.Color(0xff6b35),
-  project:      new THREE.Color(0x26de81),
-  reference:    new THREE.Color(0xa55eea),
-  conversation: new THREE.Color(0xff4081),
-  unknown:      new THREE.Color(0x636e72),
+  user:               new THREE.Color(0x00d2ff),
+  feedback:           new THREE.Color(0xff6b35),
+  project:            new THREE.Color(0x26de81),
+  reference:          new THREE.Color(0xa55eea),
+  'memory-index':     new THREE.Color(0xffd600),
+  'project-file':     new THREE.Color(0xff78dc),
+  'project-hub':      new THREE.Color(0xdce6ff),
+  settings:           new THREE.Color(0xffb300),
+  'global-instruction': new THREE.Color(0x29b6f6),
+  conversation:       new THREE.Color(0xff4081),
+  unknown:            new THREE.Color(0x636e72),
 };
 
 const CATEGORY_COLORS = {
@@ -764,8 +792,13 @@ const nodeGroup = new THREE.Group();
 scene.add(nodeGroup);
 
 // Shared geometries
-const sphereGeo = new THREE.IcosahedronGeometry(1, 2);
-const hexGeo = new THREE.CylinderGeometry(1, 1, 0.4, 6);
+const sphereGeo  = new THREE.IcosahedronGeometry(1, 2);
+const hexGeo     = new THREE.CylinderGeometry(1, 1, 0.4, 6);
+const octaGeo    = new THREE.OctahedronGeometry(1, 0);
+const boxGeo     = new THREE.BoxGeometry(1.4, 1.4, 1.4);
+const hubGeo     = new THREE.IcosahedronGeometry(1, 3);   // large smooth sphere for hubs
+const pentaGeo   = new THREE.CylinderGeometry(1, 1, 0.6, 5);  // pentagon cylinder for settings
+const bigOctaGeo = new THREE.OctahedronGeometry(1.3, 1);  // bigger diamond for global instruction
 
 function nodeScale(n) {
   if (n.nodeType === 'conversation') {
@@ -773,31 +806,49 @@ function nodeScale(n) {
     const sizeFactor = Math.min(Math.log2(((n.fileSize || 1024) / 1024) + 1) * 0.5, 2);
     return 2 + msgFactor + sizeFactor * 0.3;
   }
+  if (n.nodeType === 'project-hub') return 4 + Math.min(n.connections * 0.3, 3);
+  if (n.nodeType === 'global-instruction') return 5;
+  if (n.nodeType === 'settings') return 3.5;
   return 2 + Math.min(n.connections * 0.4, 3.5);
 }
 
-function createNodeMaterial(color, isConv) {
+function createNodeMaterial(color, nodeType) {
+  const isConv = nodeType === 'conversation';
+  const isHub = nodeType === 'project-hub';
+  const isGlobal = nodeType === 'global-instruction';
   return new THREE.MeshStandardMaterial({
-    color: color.clone().multiplyScalar(0.15),
+    color: color.clone().multiplyScalar(isHub ? 0.05 : 0.15),
     emissive: color,
-    emissiveIntensity: isConv ? 1.8 : 2.2,
-    metalness: isConv ? 0.6 : 0.3,
-    roughness: isConv ? 0.2 : 0.4,
+    emissiveIntensity: isGlobal ? 3.5 : isHub ? 1.5 : isConv ? 1.8 : 2.2,
+    metalness: isHub ? 0.9 : isConv ? 0.6 : 0.3,
+    roughness: isHub ? 0.05 : isConv ? 0.2 : 0.4,
     transparent: true,
-    opacity: 0.9,
+    opacity: isConv ? 0.6 : 0.9,
   });
 }
 
 nodes.forEach(n => {
   const color = TYPE_COLORS[n.type] || TYPE_COLORS[n.nodeType] || TYPE_COLORS.unknown;
   const isConv = n.nodeType === 'conversation';
+  const isMemIdx = n.nodeType === 'memory-index';
+  const isProjFile = n.nodeType === 'project-file';
+  const isHub = n.nodeType === 'project-hub';
+  const isSettings = n.nodeType === 'settings';
+  const isGlobal = n.nodeType === 'global-instruction';
   const scale = nodeScale(n);
 
   const group = new THREE.Group();
 
-  // Core mesh
-  const geo = isConv ? hexGeo : sphereGeo;
-  const mat = createNodeMaterial(color, isConv);
+  // Core mesh — shape varies by nodeType
+  let geo = sphereGeo;
+  if (isConv)     geo = hexGeo;
+  if (isMemIdx)   geo = octaGeo;
+  if (isProjFile) geo = boxGeo;
+  if (isHub)      geo = hubGeo;
+  if (isSettings) geo = pentaGeo;
+  if (isGlobal)   geo = bigOctaGeo;
+
+  const mat = createNodeMaterial(color, n.nodeType);
   const core = new THREE.Mesh(geo, mat);
   core.scale.setScalar(scale);
   if (isConv) core.rotation.y = Math.random() * Math.PI;
@@ -808,12 +859,12 @@ nodes.forEach(n => {
     map: glowTexture,
     color: color,
     transparent: true,
-    opacity: 0.25,
+    opacity: isHub ? 0.5 : isGlobal ? 0.6 : isSettings ? 0.45 : isMemIdx || isProjFile ? 0.35 : isConv ? 0.15 : 0.25,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
   const halo = new THREE.Sprite(haloMat);
-  halo.scale.setScalar(scale * 5);
+  halo.scale.setScalar(scale * (isHub ? 8 : isGlobal ? 9 : isMemIdx || isProjFile ? 6 : 5));
   group.add(halo);
 
   // Wireframe ring for conversations
@@ -829,6 +880,59 @@ nodes.forEach(n => {
     ring.rotation.x = Math.PI / 2;
     ring.name = 'ring';
     group.add(ring);
+  }
+
+  // Orbit ring for memory-index nodes
+  if (isMemIdx) {
+    const orbitGeo = new THREE.TorusGeometry(scale * 1.6, 0.05, 6, 32);
+    const orbitMat = new THREE.MeshBasicMaterial({
+      color: color,
+      transparent: true,
+      opacity: 0.4,
+      blending: THREE.AdditiveBlending,
+    });
+    const orbit = new THREE.Mesh(orbitGeo, orbitMat);
+    orbit.rotation.x = Math.PI / 4;
+    orbit.name = 'orbit';
+    group.add(orbit);
+  }
+
+  // Double orbit rings for project-hub nodes
+  if (isHub) {
+    for (let ri = 0; ri < 2; ri++) {
+      const rGeo = new THREE.TorusGeometry(scale * (1.8 + ri * 0.5), 0.06, 6, 48);
+      const rMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.25 - ri * 0.05, blending: THREE.AdditiveBlending });
+      const ring = new THREE.Mesh(rGeo, rMat);
+      ring.rotation.x = ri === 0 ? Math.PI / 3 : Math.PI / 6;
+      ring.name = `hubring${ri}`;
+      group.add(ring);
+    }
+  }
+
+  // Pulsing triple ring for global-instruction node
+  if (isGlobal) {
+    for (let ri = 0; ri < 3; ri++) {
+      const rGeo = new THREE.TorusGeometry(scale * (2 + ri * 0.7), 0.07, 6, 64);
+      const rMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.4 - ri * 0.1, blending: THREE.AdditiveBlending });
+      const ring = new THREE.Mesh(rGeo, rMat);
+      ring.rotation.x = (ri * Math.PI) / 3;
+      ring.name = `globalring${ri}`;
+      group.add(ring);
+    }
+  }
+
+  // Edge frame for project-file nodes
+  if (isProjFile) {
+    const edgesGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(scale * 2.2, scale * 2.2, scale * 2.2));
+    const edgesMat = new THREE.LineBasicMaterial({
+      color: color,
+      transparent: true,
+      opacity: 0.35,
+      blending: THREE.AdditiveBlending,
+    });
+    const wireframe = new THREE.LineSegments(edgesGeo, edgesMat);
+    wireframe.name = 'wireframe';
+    group.add(wireframe);
   }
 
   group.userData = { node: n, baseScale: scale, coreMesh: core };
@@ -976,32 +1080,70 @@ scene.add(dustPoints);
 // ═══════════════════════════════════════════════════════════════════
 
 function initPositions3D() {
-  const projects = {};
-  nodes.forEach(n => {
-    if (!projects[n.project]) projects[n.project] = [];
-    projects[n.project].push(n);
+  // ── Hierarchical deterministic layout ──────────────────────────────
+  // Level 0: Global nodes  → top-center (y = 220)
+  // Level 1: Project hubs  → ring at y = 0,  r = 220
+  // Level 2: Anchors (memory-index, project-file) → tight ring r = 48 per hub
+  // Level 3: Memory nodes  → mid ring r = 95 per hub
+  // Level 4: Conversations → outer ring r = 170 per hub
+
+  const globalNs   = nodes.filter(n => n.project === '__global__');
+  const hubNs      = nodes.filter(n => n.nodeType === 'project-hub');
+  const hubProjects = new Set(hubNs.map(h => h.project));
+
+  // Place global nodes at top-center
+  globalNs.forEach((n, i) => {
+    const a = (i / Math.max(globalNs.length, 1)) * Math.PI * 2;
+    const r = globalNs.length > 1 ? 50 : 0;
+    n.x = Math.cos(a) * r; n.y = 220; n.z = Math.sin(a) * r;
+    n.tx = n.x; n.ty = n.y; n.tz = n.z;
+    n._pinned = true;
   });
-  const projKeys = Object.keys(projects);
-  const baseR = 150;
 
-  projKeys.forEach((proj, pi) => {
-    const phi = (pi / projKeys.length) * Math.PI * 2;
-    const theta = (pi / projKeys.length) * Math.PI * 0.6 + Math.PI * 0.2;
-    const cx = Math.cos(phi) * Math.sin(theta) * baseR;
-    const cy = (Math.cos(theta) - 0.5) * baseR * 0.3;
-    const cz = Math.sin(phi) * Math.sin(theta) * baseR;
-    const group = projects[proj];
-    const spread = Math.sqrt(group.length) * 6;
+  // Place project hubs in a flat ring
+  const HUB_R = 220;
+  hubNs.forEach((hub, hi) => {
+    const a = (hi / hubNs.length) * Math.PI * 2;
+    hub.x = Math.cos(a) * HUB_R; hub.y = 0; hub.z = Math.sin(a) * HUB_R;
+    hub.tx = hub.x; hub.ty = hub.y; hub.tz = hub.z;
+    hub._pinned = true;
 
-    group.forEach((n, ni) => {
-      const a = (ni / group.length) * Math.PI * 2;
-      const r = spread * (0.3 + Math.random() * 0.7);
-      const elev = (Math.random() - 0.5) * spread * 0.5;
-      n.x = cx + Math.cos(a) * r;
-      n.y = cy + elev;
-      n.z = cz + Math.sin(a) * r;
+    const cx = hub.x, cz = hub.z;
+
+    // Anchors — memory-index and project-file
+    const anchors = nodes.filter(n =>
+      n.project === hub.project && (n.nodeType === 'memory-index' || n.nodeType === 'project-file')
+    );
+    anchors.forEach((n, ni) => {
+      const aa = (ni / Math.max(anchors.length, 1)) * Math.PI * 2;
+      n.x = cx + Math.cos(aa) * 48; n.y = ni % 2 === 0 ? 25 : -25; n.z = cz + Math.sin(aa) * 48;
       n.tx = n.x; n.ty = n.y; n.tz = n.z;
     });
+
+    // Memory nodes
+    const mems = nodes.filter(n => n.project === hub.project && n.nodeType === 'memory');
+    mems.forEach((n, ni) => {
+      const aa = (ni / Math.max(mems.length, 1)) * Math.PI * 2;
+      const r = 95 + (ni % 3) * 18;
+      n.x = cx + Math.cos(aa) * r; n.y = ((ni % 5) - 2) * 18; n.z = cz + Math.sin(aa) * r;
+      n.tx = n.x; n.ty = n.y; n.tz = n.z;
+    });
+
+    // Conversations
+    const convs = nodes.filter(n => n.project === hub.project && n.nodeType === 'conversation');
+    convs.forEach((n, ni) => {
+      const aa = (ni / Math.max(convs.length, 1)) * Math.PI * 2;
+      n.x = cx + Math.cos(aa) * 170; n.y = ((ni % 7) - 3) * 22; n.z = cz + Math.sin(aa) * 170;
+      n.tx = n.x; n.ty = n.y; n.tz = n.z;
+    });
+  });
+
+  // Orphan nodes (no hub) — outer scatter ring
+  nodes.forEach((n, ni) => {
+    if (n.project === '__global__' || hubProjects.has(n.project) || n.nodeType === 'project-hub') return;
+    const a = (ni / nodes.length) * Math.PI * 2;
+    n.x = Math.cos(a) * 340; n.y = ((ni % 9) - 4) * 20; n.z = Math.sin(a) * 340;
+    n.tx = n.x; n.ty = n.y; n.tz = n.z;
   });
 }
 
@@ -1023,6 +1165,8 @@ function runForceLayout3D(iterations) {
 
     for (let i = 0; i < N; i++) {
       nodes[i].vx = 0; nodes[i].vy = 0; nodes[i].vz = 0;
+      // Pinned nodes (hubs, globals) don't move
+      nodes[i]._skip = !!nodes[i]._pinned;
     }
 
     // Grid-based repulsion
@@ -1073,15 +1217,12 @@ function runForceLayout3D(iterations) {
       b.vx -= fx; b.vy -= fy; b.vz -= fz;
     }
 
-    // Strong centering to keep nodes in view
+    // Apply velocity; skip pinned nodes
     for (const n of nodes) {
-      n.vx -= n.x * 0.003;
-      n.vy -= n.y * 0.003;
-      n.vz -= n.z * 0.003;
+      if (n._skip) continue;
       n.x += n.vx * cooling;
       n.y += n.vy * cooling;
       n.z += n.vz * cooling;
-      // Hard clamp to ±400
       n.x = Math.max(-400, Math.min(400, n.x));
       n.y = Math.max(-250, Math.min(250, n.y));
       n.z = Math.max(-400, Math.min(400, n.z));
@@ -1129,7 +1270,7 @@ function applyTimelineLayout3D() {
 
 // Initialize layout
 initPositions3D();
-runForceLayout3D(200);
+runForceLayout3D(60);
 
 // Set mesh positions immediately (no lerp on first frame)
 var positionedCount = 0;
@@ -1274,6 +1415,11 @@ function showTooltip(node, event) {
     if (node.duration) meta.push(formatDuration(node.startedAt, node.endedAt));
     if (node.messageCount) meta.push(node.messageCount + ' msgs');
     if (node.toolsUsed && node.toolsUsed.length) meta.push(node.toolsUsed.length + ' tools');
+  } else if (node.nodeType === 'memory-index') {
+    meta.push('mem index');
+  } else if (node.nodeType === 'project-file') {
+    meta.push('project file');
+    if (node.cwd) meta.push(node.cwd.split('/').pop());
   } else {
     meta.push(node.type);
   }
@@ -1340,15 +1486,17 @@ function openPanel(n) {
     if (n.endedAt) timestamps.push(`Ended: ${new Date(n.endedAt).toLocaleString()}`);
     document.getElementById('panel-meta').textContent = timestamps.join(' · ');
   } else {
-    badge.textContent = n.type;
+    const typeLabel = { 'memory-index': 'MEM INDEX', 'project-file': 'PROJ FILE' }[n.type] || n.type.toUpperCase();
+    badge.textContent = typeLabel;
     badge.style.background = hexOf(n.type);
     badge.style.color = '#030508';
     const projClean = cleanProjectPath(n.project);
     document.getElementById('panel-project').textContent = projClean;
     document.getElementById('panel-desc').innerHTML = '<span style="color:#3a4a5a;font-style:italic">Loading...</span>';
     document.getElementById('panel-body').textContent = '';
-    document.getElementById('panel-meta').textContent =
-      `Modified: ${new Date(n.modifiedAt).toLocaleDateString()} · File: ${n.file}`;
+    const metaParts = [`Modified: ${new Date(n.modifiedAt).toLocaleDateString()}`, `File: ${n.file}`];
+    if (n.cwd) metaParts.push(n.cwd.replace(/^\/Users\/[^/]+\//, '~/'));
+    document.getElementById('panel-meta').textContent = metaParts.join(' · ');
   }
 
   // Category badge
@@ -1413,16 +1561,38 @@ function openPanel(n) {
   const statusColors = { active: '#26de81', archived: '#3a4a5a', pinned: '#ffdd00' };
   statusEl.innerHTML = `<span style="color:${statusColors[status] || '#666'}">●</span> ${status}`;
 
-  // Fetch messages
+  // Show content
   const messagesEl = document.getElementById('panel-messages');
-  const nodeId = n.sessionId || n.id;
+  const descEl = document.getElementById('panel-desc');
+
+  if (n.nodeType !== 'conversation') {
+    // All knowledge nodes have body available directly — no fetch needed
+    descEl.textContent = n.description || '(no description)';
+    document.getElementById('panel-body').textContent = n.body || '';
+    messagesEl.innerHTML = '';
+    if (n.body) {
+      const title = document.createElement('div');
+      title.className = 'thread-title';
+      const labels = { 'memory-index': 'Memory index', 'project-file': 'Project instructions', 'project-hub': 'Project hub', 'settings': 'Settings', 'global-instruction': 'Global instructions' };
+      title.textContent = labels[n.nodeType] || 'Memory content';
+      messagesEl.appendChild(title);
+      const content = document.createElement('div');
+      content.className = 'message-bubble user';
+      content.textContent = n.body;
+      content.style.maxHeight = '400px';
+      content.style.overflowY = 'auto';
+      content.style.whiteSpace = 'pre-wrap';
+      messagesEl.appendChild(content);
+    }
+  } else {
+  // Fetch conversation messages on demand
   messagesEl.innerHTML = '<div class="message-loading">Loading neural pathways...</div>';
+  descEl.innerHTML = '<span style="color:#3a4a5a;font-style:italic">Loading...</span>';
+  const nodeId = n.sessionId || n.id;
   fetch(`/api/detail?id=${encodeURIComponent(nodeId)}`)
     .then(r => r.ok ? r.json() : Promise.reject('not found'))
     .then(data => {
       messagesEl.innerHTML = '';
-      // Populate on-demand text fields
-      const descEl = document.getElementById('panel-desc');
       if (data.type === 'conversation') {
         if (data.summary) {
           descEl.innerHTML = '';
@@ -1435,9 +1605,6 @@ function openPanel(n) {
         } else {
           descEl.textContent = '(no message preview)';
         }
-      } else if (data.type === 'memory') {
-        descEl.textContent = data.description || '(no description)';
-        document.getElementById('panel-body').textContent = data.body || '(empty)';
       }
       if (data.type === 'conversation' && data.messages && data.messages.length) {
         const userMsgs = data.messages.filter(m => m.role === 'user');
@@ -1514,22 +1681,15 @@ function openPanel(n) {
 
           messagesEl.appendChild(bubble);
         }
-      } else if (data.type === 'memory' && data.body) {
-        const title = document.createElement('div');
-        title.className = 'thread-title';
-        title.textContent = 'Memory content';
-        messagesEl.appendChild(title);
-        const content = document.createElement('div');
-        content.className = 'message-bubble user';
-        content.textContent = data.body;
-        content.style.maxHeight = '400px';
-        content.style.overflowY = 'auto';
-        messagesEl.appendChild(content);
       } else {
-        messagesEl.innerHTML = '';
+        messagesEl.innerHTML = '<div style="color:#3a4a5a;padding:8px;font-size:11px">No messages available</div>';
       }
     })
-    .catch(() => { messagesEl.innerHTML = ''; });
+    .catch(() => {
+      messagesEl.innerHTML = '<div style="color:#3a4a5a;padding:8px;font-size:11px">Could not load messages</div>';
+      descEl.textContent = n.name;
+    });
+  } // end conversation else
 
   panel.classList.add('open');
 }
@@ -1550,9 +1710,17 @@ function applyFilters() {
 
   nodes.forEach(n => {
     let vis = true;
+    // Conversations hidden by default unless "All" selected or explicitly shown
+    if (n._convHidden && activeFilter !== 'all') vis = false;
     if (activeFilter !== 'all') {
       if (activeFilter === 'conversation') {
         if (n.nodeType !== 'conversation') vis = false;
+        else vis = true; // override _convHidden when filtering to conversations explicitly
+      } else if (activeFilter === '__global__') {
+        vis = n.project === '__global__';
+      } else if (['project-hub', 'settings', 'global-instruction', 'memory-index', 'project-file'].includes(activeFilter)) {
+        if (n.nodeType !== activeFilter) vis = false;
+        else vis = true;
       } else {
         if (n.type !== activeFilter) vis = false;
       }
@@ -1679,9 +1847,52 @@ function updateNodePositions() {
       const core = mesh.userData.coreMesh;
       core.rotation.y += 0.003;
       const ring = mesh.getObjectByName('ring');
-      if (ring) {
-        ring.rotation.z += 0.005;
+      if (ring) ring.rotation.z += 0.005;
+    }
+
+    // Spin for memory-index diamonds
+    if (n.nodeType === 'memory-index') {
+      const core = mesh.userData.coreMesh;
+      core.rotation.y += 0.008;
+      core.rotation.x += 0.004;
+      const orbit = mesh.getObjectByName('orbit');
+      if (orbit) orbit.rotation.z += 0.006;
+    }
+
+    // Slow tumble for project-file cubes
+    if (n.nodeType === 'project-file') {
+      const core = mesh.userData.coreMesh;
+      core.rotation.y += 0.004;
+      core.rotation.z += 0.002;
+      const wireframe = mesh.getObjectByName('wireframe');
+      if (wireframe) { wireframe.rotation.y += 0.004; wireframe.rotation.z += 0.002; }
+    }
+
+    // Project hub — slow counter-rotating rings
+    if (n.nodeType === 'project-hub') {
+      const core = mesh.userData.coreMesh;
+      core.rotation.y += 0.001;
+      const r0 = mesh.getObjectByName('hubring0');
+      const r1 = mesh.getObjectByName('hubring1');
+      if (r0) r0.rotation.z += 0.004;
+      if (r1) r1.rotation.z -= 0.003;
+    }
+
+    // Global instruction — majestic slow spin with pulsing rings
+    if (n.nodeType === 'global-instruction') {
+      const core = mesh.userData.coreMesh;
+      core.rotation.y += 0.006;
+      core.rotation.x += 0.002;
+      for (let ri = 0; ri < 3; ri++) {
+        const r = mesh.getObjectByName(`globalring${ri}`);
+        if (r) { r.rotation.z += 0.005 - ri * 0.001; r.rotation.x += 0.001; }
       }
+    }
+
+    // Settings — slow pentagon spin
+    if (n.nodeType === 'settings') {
+      const core = mesh.userData.coreMesh;
+      core.rotation.y += 0.005;
     }
 
     // Breathing pulse
@@ -1864,6 +2075,18 @@ document.getElementById('search-box').addEventListener('input', (e) => {
   applyFilters();
 });
 
+// Chatlog visibility toggle — conversations hidden by default
+let showConversations = false;
+nodes.forEach(n => { if (n.nodeType === 'conversation') n._convHidden = true; });
+
+const convToggleBtn = document.getElementById('conv-toggle');
+convToggleBtn.addEventListener('click', () => {
+  showConversations = !showConversations;
+  convToggleBtn.textContent = showConversations ? 'Hide chatlogs' : 'Show chatlogs';
+  nodes.forEach(n => { if (n.nodeType === 'conversation') n._convHidden = !showConversations; });
+  applyFilters();
+});
+
 document.querySelectorAll('.filter-bar .filter-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.filter-bar .filter-btn').forEach(b => b.classList.remove('active'));
@@ -1906,7 +2129,7 @@ function toggleLayout() {
     applyTimelineLayout3D();
   } else {
     initPositions3D();
-    runForceLayout3D(200);
+    runForceLayout3D(60);
   }
 }
 

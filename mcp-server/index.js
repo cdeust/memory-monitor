@@ -241,7 +241,7 @@ function discoverAllMemories() {
     if (!fs.existsSync(memoryDir)) continue;
 
     const files = fs.readdirSync(memoryDir).filter(
-      (f) => f.endsWith(".md") && f !== "MEMORY.md"
+      (f) => f.endsWith(".md")
     );
 
     for (const file of files) {
@@ -250,17 +250,18 @@ function discoverAllMemories() {
         const content = fs.readFileSync(filePath, "utf-8");
         const stat = fs.statSync(filePath);
         const { meta, body } = parseYAMLFrontmatter(content);
+        const isIndex = file === "MEMORY.md";
 
         memories.push({
           id: `mem_${idCounter++}`,
           file,
           path: filePath,
           project: pdir.name,
-          name: meta.name || file.replace(/\.md$/, ""),
-          description: meta.description || "",
-          type: meta.type || "unknown",
+          name: isIndex ? `Memory Index — ${pdir.name.replace(/^-Users-[^-]+-Documents-Developments-/, "").replace(/-/g, " ")}` : (meta.name || file.replace(/\.md$/, "")),
+          description: isIndex ? "Memory index file listing all memory pointers" : (meta.description || ""),
+          type: isIndex ? "memory-index" : (meta.type || "unknown"),
           body,
-          nodeType: "memory",
+          nodeType: isIndex ? "memory-index" : "memory",
           modifiedAt: stat.mtime.toISOString(),
         });
       } catch (e) {
@@ -486,6 +487,172 @@ function filterRecentConversations(conversations, days = 90) {
     if (!c.endedAt) return false;
     return new Date(c.endedAt).getTime() >= cutoff;
   });
+}
+
+// ---------------------------------------------------------------------------
+// Global node discovery (settings, global CLAUDE.md)
+// ---------------------------------------------------------------------------
+
+function discoverGlobalNodes() {
+  const nodes = [];
+  const claudeDir = path.join(os.homedir(), '.claude');
+
+  // settings.json — what plugins, permissions, hooks are active
+  const settingsPath = path.join(claudeDir, 'settings.json');
+  if (fs.existsSync(settingsPath)) {
+    try {
+      const content = fs.readFileSync(settingsPath, 'utf-8');
+      const stat = fs.statSync(settingsPath);
+      nodes.push({
+        id: 'global_settings',
+        file: 'settings.json',
+        path: settingsPath,
+        project: '__global__',
+        name: 'Global Settings',
+        description: 'Enabled plugins, permissions and hooks for Claude Code',
+        type: 'settings',
+        nodeType: 'settings',
+        body: content,
+        modifiedAt: stat.mtime.toISOString(),
+      });
+    } catch (_) {}
+  }
+
+  // Global CLAUDE.md — instructions that apply to every session
+  const globalClaudePath = path.join(claudeDir, 'CLAUDE.md');
+  if (fs.existsSync(globalClaudePath)) {
+    try {
+      const content = fs.readFileSync(globalClaudePath, 'utf-8');
+      const stat = fs.statSync(globalClaudePath);
+      nodes.push({
+        id: 'global_claude_md',
+        file: 'CLAUDE.md',
+        path: globalClaudePath,
+        project: '__global__',
+        name: 'Global Instructions',
+        description: 'Global CLAUDE.md — instructions applied to every project',
+        type: 'global-instruction',
+        nodeType: 'global-instruction',
+        body: content,
+        modifiedAt: stat.mtime.toISOString(),
+      });
+    } catch (_) {}
+  }
+
+  return nodes;
+}
+
+// ---------------------------------------------------------------------------
+// Project hub discovery
+// ---------------------------------------------------------------------------
+
+function discoverProjectHubs(memories, projectFiles) {
+  const projectSet = new Map(); // project -> { modifiedAt }
+  for (const n of [...memories, ...projectFiles]) {
+    if (!n.project || n.project === '__global__') continue;
+    const existing = projectSet.get(n.project);
+    const mtime = n.modifiedAt || '';
+    if (!existing || mtime > existing.modifiedAt) {
+      projectSet.set(n.project, { modifiedAt: mtime });
+    }
+  }
+
+  const hubs = [];
+  let i = 0;
+  for (const [proj, meta] of projectSet) {
+    const cleanName = proj
+      .replace(/^-Users-[^-]+-Documents-Developments-/, '')
+      .replace(/-/g, ' ')
+      .trim() || proj;
+    hubs.push({
+      id: `hub_${i++}`,
+      project: proj,
+      name: cleanName,
+      description: `Project hub: ${cleanName}`,
+      type: 'project-hub',
+      nodeType: 'project-hub',
+      body: '',
+      modifiedAt: meta.modifiedAt,
+    });
+  }
+  return hubs;
+}
+
+function buildProjectHubEdges(hubs, memories, projectFiles, globalNodes) {
+  const edges = [];
+  for (const hub of hubs) {
+    for (const n of [...memories, ...projectFiles]) {
+      if (n.project === hub.project) {
+        const isAnchor = n.nodeType === 'memory-index' || n.nodeType === 'project-file';
+        edges.push({ source: hub.id, target: n.id, weight: isAnchor ? 0.9 : 0.5, edgeType: 'hub-mem' });
+      }
+    }
+    // Connect all project hubs to global settings
+    for (const g of globalNodes) {
+      edges.push({ source: g.id, target: hub.id, weight: 0.6, edgeType: 'global-hub' });
+    }
+  }
+  return edges;
+}
+
+// ---------------------------------------------------------------------------
+// Project file discovery (CLAUDE.md)
+// ---------------------------------------------------------------------------
+
+let projFileCache = { data: null, ts: 0 };
+const PROJ_FILE_CACHE_TTL = 60000;
+
+function discoverProjectFiles(conversations) {
+  const now = Date.now();
+  if (projFileCache.data && now - projFileCache.ts < PROJ_FILE_CACHE_TTL) {
+    return projFileCache.data;
+  }
+
+  const seen = new Set();
+  const projectFiles = [];
+  let idCounter = 0;
+
+  for (const conv of conversations) {
+    if (!conv.cwd || seen.has(conv.cwd)) continue;
+    seen.add(conv.cwd);
+
+    const claudePath = path.join(conv.cwd, "CLAUDE.md");
+    if (fs.existsSync(claudePath)) {
+      try {
+        const content = fs.readFileSync(claudePath, "utf-8");
+        const stat = fs.statSync(claudePath);
+        projectFiles.push({
+          id: `pf_${idCounter++}`,
+          file: "CLAUDE.md",
+          path: claudePath,
+          project: conv.project,
+          cwd: conv.cwd,
+          name: `CLAUDE — ${path.basename(conv.cwd)}`,
+          description: `Project instructions for ${path.basename(conv.cwd)}`,
+          type: "project-file",
+          nodeType: "project-file",
+          body: content.slice(0, 1000),
+          modifiedAt: stat.mtime.toISOString(),
+        });
+      } catch (_) {}
+    }
+  }
+
+  projFileCache = { data: projectFiles, ts: now };
+  return projectFiles;
+}
+
+function buildProjectFileEdges(projectFiles, memories) {
+  const edges = [];
+  for (const pf of projectFiles) {
+    for (const mem of memories) {
+      if (mem.project === pf.project) {
+        const weight = mem.nodeType === "memory-index" ? 0.7 : 0.35;
+        edges.push({ source: pf.id, target: mem.id, weight, edgeType: "proj-mem" });
+      }
+    }
+  }
+  return edges;
 }
 
 // ---------------------------------------------------------------------------
@@ -794,9 +961,16 @@ function startUIServer(graphData) {
       return;
     }
 
-    // Inject graph data (strip heavy fields from client payload — served on demand via API)
+    // Inject graph data — strip conversation-heavy fields, keep body for knowledge nodes
     const clientData = {
-      nodes: graphData.nodes.map(({ _filePath, body, firstMessage, summary, ...rest }) => rest),
+      nodes: graphData.nodes.map(n => {
+        const { _filePath, ...rest } = n;
+        if (n.nodeType === 'conversation') {
+          const { body: _b, firstMessage: _fm, summary: _s, ...convRest } = rest;
+          return convRest;
+        }
+        return rest;
+      }),
       edges: graphData.edges,
     };
     html = html.replace(
@@ -1029,6 +1203,11 @@ const TOOLS = {
       const allConvs = discoverConversations();
       const convs = filterRecentConversations(allConvs, dayLimit);
       const brainEdges = buildBrainEdges(convs, memories);
+      const projectFiles = discoverProjectFiles(allConvs);
+      const projEdges = buildProjectFileEdges(projectFiles, memories);
+      const globalNodes = discoverGlobalNodes();
+      const hubs = discoverProjectHubs(memories, projectFiles);
+      const hubEdges = buildProjectHubEdges(hubs, memories, projectFiles, globalNodes);
 
       // Lazy-sync brain index
       const brainIndex = ensureIndexed(memories, allConvs);
@@ -1061,8 +1240,8 @@ const TOOLS = {
         return node;
       });
 
-      const allNodes = [...enrichedMemNodes, ...convNodes];
-      const allEdges = [...memEdges, ...brainEdges];
+      const allNodes = [...enrichedMemNodes, ...convNodes, ...projectFiles, ...globalNodes, ...hubs];
+      const allEdges = [...memEdges, ...brainEdges, ...projEdges, ...hubEdges];
 
       // Add cross-reference edges
       const nodeIdByKey = {};
@@ -1093,6 +1272,7 @@ const TOOLS = {
         edges: allEdges,
         totalMemories: enrichedMemNodes.length,
         totalConversations: convNodes.length,
+        totalProjectFiles: projectFiles.length,
         totalEdges: allEdges.length,
       };
     },
@@ -1417,6 +1597,11 @@ const TOOLS = {
       const allConvs = discoverConversations();
       const convs = filterRecentConversations(allConvs, 90);
       const brainEdges = buildBrainEdges(convs, memories);
+      const projectFiles = discoverProjectFiles(allConvs);
+      const projEdges = buildProjectFileEdges(projectFiles, memories);
+      const globalNodes = discoverGlobalNodes();
+      const hubs = discoverProjectHubs(memories, projectFiles);
+      const hubEdges = buildProjectHubEdges(hubs, memories, projectFiles, globalNodes);
 
       // Lazy-sync brain index
       const brainIndex = ensureIndexed(memories, allConvs);
@@ -1449,8 +1634,8 @@ const TOOLS = {
         return enriched;
       });
 
-      const allNodes = [...enrichedMemories, ...convNodes];
-      const allEdges = [...memEdges, ...brainEdges];
+      const allNodes = [...enrichedMemories, ...convNodes, ...projectFiles, ...globalNodes, ...hubs];
+      const allEdges = [...memEdges, ...brainEdges, ...projEdges, ...hubEdges];
 
       // Add cross-reference edges
       const nodeIdByKey = {};
@@ -1494,6 +1679,9 @@ const TOOLS = {
         message: `Brain mapping visualization opened at ${url}`,
         totalMemories: enrichedMemories.length,
         totalConversations: convNodes.length,
+        totalProjectFiles: projectFiles.length,
+        totalProjectHubs: hubs.length,
+        totalGlobalNodes: globalNodes.length,
         totalEdges: allEdges.length,
       };
     },
