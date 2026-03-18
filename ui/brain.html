@@ -230,9 +230,9 @@ canvas { display:block; position:absolute; top:0; left:0; }
 /* ── Legend ─────────────────────────────────────────────────────── */
 #legend-brain {
   position:fixed; bottom:14px; left:14px;
-  background:rgba(0,0,0,0.7); border:1px solid rgba(255,255,255,0.05);
-  border-radius:4px; padding:9px 12px; backdrop-filter:blur(10px);
-  font-size:8px; color:rgba(255,255,255,0.2); z-index:100;
+  background:rgba(0,0,0,0.88); border:1px solid rgba(0,210,255,0.12);
+  border-radius:6px; padding:12px 16px; backdrop-filter:blur(16px);
+  font-size:10px; color:rgba(180,200,220,0.8); z-index:100;
 }
 .leg-row { display:flex; align-items:center; gap:5px; padding:1px 0; }
 .leg-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
@@ -389,22 +389,25 @@ canvas { display:block; position:absolute; top:0; left:0; }
 <!-- Chart tooltip -->
 <div id="chart-tooltip-brain"></div>
 
-<!-- Legend -->
+<!-- Legend (shared with index.html) -->
 <div id="legend-brain">
-  <div style="font-size:7px;color:rgba(255,255,255,0.15);margin-bottom:5px;letter-spacing:.1em">NEURON TYPES</div>
-  <div class="leg-row"><div class="leg-dot" style="background:#fff"></div>Global / Settings</div>
-  <div class="leg-row"><div class="leg-dot" style="background:#f5a623"></div>Project Hub</div>
-  <div class="leg-row"><div class="leg-dot" style="background:#00c8ff"></div>Memory Index</div>
-  <div class="leg-row"><div class="leg-dot" style="background:#26de81"></div>Memory · User</div>
-  <div class="leg-row"><div class="leg-dot" style="background:#ff7043"></div>Memory · Feedback</div>
-  <div class="leg-row"><div class="leg-dot" style="background:#ffd740"></div>Memory · Project</div>
-  <div class="leg-row"><div class="leg-dot" style="background:#f06292"></div>Memory · Reference</div>
-  <div class="leg-row"><div class="leg-dot" style="background:#ab47bc"></div>Plan</div>
-  <div class="leg-row"><div class="leg-dot" style="background:#80cbc4"></div>Project File</div>
-  <div class="leg-row"><div class="leg-dot" style="background:#69f0ae"></div>MCP Tool</div>
-  <div class="leg-row"><div class="leg-dot" style="background:#7c4dff"></div>Plugin</div>
-  <div class="leg-row"><div class="leg-dot" style="background:#ffca28"></div>Todo</div>
-  <div class="leg-row"><div class="leg-dot" style="background:#ef9a9a"></div>Chatlog</div>
+  <div style="font-size:9px;color:#5a7a9a;margin-bottom:6px;letter-spacing:0.05em">KNOWLEDGE NODES</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#dce6ff;box-shadow:0 0 8px #dce6ff"></div>Project Hub</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#29b6f6"></div>Global (CLAUDE.md)</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#ffb300"></div>Settings</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#ffd600"></div>Memory Index</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#ff78dc"></div>CLAUDE.md</div>
+  <div style="font-size:9px;color:#5a7a9a;margin:6px 0 4px;letter-spacing:0.05em">MEMORIES</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#00d2ff"></div>User pref</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#ff6b35"></div>Feedback</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#26de81"></div>Project ctx</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#a55eea"></div>Reference</div>
+  <div class="leg-row"><div class="leg-dot" style="opacity:0.4"></div><span style="opacity:0.5">Chatlogs (hidden)</span></div>
+  <div style="font-size:9px;color:#5a7a9a;margin:6px 0 4px;letter-spacing:0.05em">TOOLS &amp; WORK</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#9c27b0"></div>Plugin</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#6c63ff"></div>MCP Tool</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#1abc9c"></div>Plan</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#ffc107"></div>Todo</div>
 </div>
 
 <div id="hud"></div>
@@ -422,7 +425,16 @@ canvas { display:block; position:absolute; top:0; left:0; }
 <script>
 /*__GRAPH_DATA__*/
 
-const { nodes, edges } = window.__GRAPH_DATA__;
+(async function() {
+try {
+let data;
+if (window.__GRAPH_DATA_URL__) {
+  const resp = await fetch(window.__GRAPH_DATA_URL__);
+  data = await resp.json();
+} else {
+  data = window.__GRAPH_DATA__;
+}
+const { nodes, edges } = data;
 const W = window.innerWidth, H = window.innerHeight;
 
 // ── Helpers ────────────────────────────────────────────────────────
@@ -445,9 +457,10 @@ const CATEGORY_COLORS = {
 };
 
 // ── Scene ──────────────────────────────────────────────────────────
+const _brainScale = Math.max(1.0, Math.sqrt(nodes.length / 100));
 const scene    = new THREE.Scene();
-const camera   = new THREE.PerspectiveCamera(50, W/H, 0.5, 3000);
-camera.position.set(0, 40, 560);
+const camera   = new THREE.PerspectiveCamera(50, W/H, 0.5, 3000 * _brainScale);
+camera.position.set(0, 40 * _brainScale, 560 * _brainScale);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(W, H);
@@ -461,13 +474,15 @@ controls.enableDamping   = true;
 controls.dampingFactor   = 0.04;
 controls.autoRotate      = true;
 controls.autoRotateSpeed = 0.25;
-controls.minDistance     = 60;
-controls.maxDistance     = 1400;
+controls.minDistance     = 60 * _brainScale;
+controls.maxDistance     = 1400 * _brainScale;
 
 // Post — subtle bloom only on bright neurons
 const composer = new THREE.EffectComposer(renderer);
 composer.addPass(new THREE.RenderPass(scene, camera));
-const bloom = new THREE.UnrealBloomPass(new THREE.Vector2(W, H), 0.9, 0.5, 0.55);
+// Scale bloom based on edge count
+// Bloom tuned for glass brain: enhance emissive neurons + fiber tracts
+const bloom = new THREE.UnrealBloomPass(new THREE.Vector2(W, H), 0.6, 0.4, 0.3);
 composer.addPass(bloom);
 // Vignette
 composer.addPass(new THREE.ShaderPass({
@@ -504,10 +519,10 @@ function nodeColor(n) {
 }
 
 // ── Brain volume ───────────────────────────────────────────────────
-const HX=38, RX=162, RY=118, RZ=140;
+const HX=38*_brainScale, RX=162*_brainScale, RY=118*_brainScale, RZ=140*_brainScale;
 function inBrain(x,y,z) {
-  if (y>118||y<-108) return false;
-  const tp = y<-42 ? Math.max(0.28,1-(-y-42)/80*0.65) : 1;
+  if (y>118*_brainScale||y<-108*_brainScale) return false;
+  const tp = y<-42*_brainScale ? Math.max(0.28,1-(-y-42*_brainScale)/(80*_brainScale)*0.65) : 1;
   const d1 = ((x+HX)/(RX*tp))**2+(y/RY)**2+(z/(RZ*tp))**2;
   const d2 = ((x-HX)/(RX*tp))**2+(y/RY)**2+(z/(RZ*tp))**2;
   return Math.min(d1,d2)<=1;
@@ -565,24 +580,25 @@ function fibPlace(arr, cx, cy, cz, r, ry, phase) {
 // Cluster layout (default)
 function computeClusterLayout() {
   // Core
-  globalNs.forEach((n,i)=>{ const a=i*GOLDEN; [n.bx,n.by,n.bz]=clamp(Math.cos(a)*12,-18+i*8,Math.sin(a)*12); });
-  fibPlace(planNs,   0, 25, 50, 70, 46, 0);
-  fibPlace(pluginNs, 0, 8, -20, 46, 30, Math.PI);
-  fibPlace(todoNs,   0, 12,  0, 88, 58, GOLDEN*4);
+  const S=_brainScale;
+  globalNs.forEach((n,i)=>{ const a=i*GOLDEN; [n.bx,n.by,n.bz]=clamp(Math.cos(a)*12*S,-18*S+i*8*S,Math.sin(a)*12*S); });
+  fibPlace(planNs,   0, 25*S, 50*S, 70*S, 46*S, 0);
+  fibPlace(pluginNs, 0, 8*S, -20*S, 46*S, 30*S, Math.PI);
+  fibPlace(todoNs,   0, 12*S,  0, 88*S, 58*S, GOLDEN*4);
 
   // Hubs on cortical sphere
   const N_HUBS=hubNs.length;
   hubNs.forEach((hub,hi)=>{
     const t=(hi+.5)/Math.max(N_HUBS,1);
     const inc=Math.acos(1-2*t), az=hi*GOLDEN;
-    ;[hub.bx,hub.by,hub.bz]=clamp(Math.sin(inc)*Math.cos(az)*95,Math.cos(inc)*74,Math.sin(inc)*Math.sin(az)*93);
+    ;[hub.bx,hub.by,hub.bz]=clamp(Math.sin(inc)*Math.cos(az)*95*S,Math.cos(inc)*74*S,Math.sin(inc)*Math.sin(az)*93*S);
 
     // Structural children near hub
     const children=nodes.filter(n=>n.project===hub.project&&
       (n.nodeType==='memory'||n.nodeType==='memory-index'||n.nodeType==='project-file'||n.nodeType==='mcp-tool'));
     children.forEach((c,ci)=>{
       const ct=(ci+.5)/Math.max(children.length,1);
-      const cinc=Math.acos(1-2*ct), caz=az+ci*GOLDEN, dr=34+(ci%3)*8;
+      const cinc=Math.acos(1-2*ct), caz=az+ci*GOLDEN, dr=(34+(ci%3)*8)*S;
       ;[c.bx,c.by,c.bz]=clamp(hub.bx+Math.sin(cinc)*Math.cos(caz)*dr, hub.by+Math.cos(cinc)*dr*.5, hub.bz+Math.sin(cinc)*Math.sin(caz)*dr);
     });
 
@@ -590,11 +606,11 @@ function computeClusterLayout() {
     const hubConvs=convNs.filter(c=>c.project===hub.project);
     if (hubConvs.length) {
       // Place cluster centre at ~48% of hub's distance from origin → well inside brain
-      const cx2=Math.sin(inc)*Math.cos(az)*48, cy2=Math.cos(inc)*38, cz2=Math.sin(inc)*Math.sin(az)*48;
+      const cx2=Math.sin(inc)*Math.cos(az)*48*S, cy2=Math.cos(inc)*38*S, cz2=Math.sin(inc)*Math.sin(az)*48*S;
       hubConvs.forEach((c,ci)=>{
         const ct=(ci+.5)/Math.max(hubConvs.length,1);
         const cinc2=Math.acos(1-2*ct), caz2=az+ci*GOLDEN;
-        const dr=22+(ci%5)*7;
+        const dr=(22+(ci%5)*7)*S;
         ;[c.bx,c.by,c.bz]=clamp(
           cx2+Math.sin(cinc2)*Math.cos(caz2)*dr,
           cy2+Math.cos(cinc2)*dr,
@@ -608,7 +624,7 @@ function computeClusterLayout() {
   nodes.forEach((n,ni)=>{
     if (n.bx!==undefined) return;
     const t=(ni+.5)/nodes.length, inc=Math.acos(1-2*t), az=ni*GOLDEN;
-    ;[n.bx,n.by,n.bz]=clamp(Math.sin(inc)*Math.cos(az)*75,Math.cos(inc)*55,Math.sin(inc)*Math.sin(az)*75);
+    ;[n.bx,n.by,n.bz]=clamp(Math.sin(inc)*Math.cos(az)*75*S,Math.cos(inc)*55*S,Math.sin(inc)*Math.sin(az)*75*S);
   });
 }
 
@@ -625,75 +641,116 @@ function computeTimelineLayout() {
   const timeRange=maxTime-minTime||1;
 
   projKeys.forEach((proj,pi)=>{
-    const bandZ=(pi-projKeys.length/2)*55;
+    const bandZ=(pi-projKeys.length/2)*55*_brainScale;
     projects[proj].forEach(n=>{
       const ts=n.startedAt||n.modifiedAt;
       const t=ts?new Date(ts).getTime():(minTime+maxTime)/2;
-      const x=((t-minTime)/timeRange-0.5)*260;
-      const y=(Math.random()-.5)*18;
-      ;[n.bx,n.by,n.bz]=clamp(x,y,bandZ+(Math.random()-.5)*22);
+      const x=((t-minTime)/timeRange-0.5)*260*_brainScale;
+      const y=(Math.random()-.5)*18*_brainScale;
+      ;[n.bx,n.by,n.bz]=clamp(x,y,bandZ+(Math.random()-.5)*22*_brainScale);
     });
   });
 }
 
 computeClusterLayout();
 
-// ── Tissue particles (monochrome: subtle grey cloud) ───────────────
+// ── Glass brain shell with cortical folds (Perlin noise displacement) ──
 function makeGlowTex(size) {
   const c=document.createElement('canvas'); c.width=c.height=size;
   const ctx=c.getContext('2d'), h=size/2;
   const g=ctx.createRadialGradient(h,h,0,h,h,h);
-  g.addColorStop(0,  'rgba(255,255,255,1)');
+  g.addColorStop(0,'rgba(255,255,255,1)');
   g.addColorStop(0.2,'rgba(255,255,255,0.8)');
   g.addColorStop(0.5,'rgba(255,255,255,0.25)');
-  g.addColorStop(1,  'rgba(255,255,255,0)');
+  g.addColorStop(1,'rgba(255,255,255,0)');
   ctx.fillStyle=g; ctx.fillRect(0,0,size,size);
   return new THREE.CanvasTexture(c);
 }
 const GLOW_TEX = makeGlowTex(64);
 
-const N_TISSUE = 22000;
-const tPos=new Float32Array(N_TISSUE*3), tPh=new Float32Array(N_TISSUE), tSz=new Float32Array(N_TISSUE);
-let pi=0,att=0;
-while (pi<N_TISSUE&&att<N_TISSUE*14) {
-  att++;
-  const x=(Math.random()-.5)*(RX*2.3), y=(Math.random()-.5)*(RY*2.3), z=(Math.random()-.5)*(RZ*2.3);
-  if (!inBrain(x,y,z)) continue;
-  tPos[pi*3]=x; tPos[pi*3+1]=y; tPos[pi*3+2]=z;
-  tPh[pi]=Math.random()*Math.PI*2;
-  tSz[pi]=2+Math.random()*3.5;
-  pi++;
+// Simple 3D noise for cortical folds (no external dependency)
+function noise3D(x,y,z){
+  const X=Math.floor(x)&255, Y=Math.floor(y)&255, Z=Math.floor(z)&255;
+  const xf=x-Math.floor(x), yf=y-Math.floor(y), zf=z-Math.floor(z);
+  const u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf), w=zf*zf*(3-2*zf);
+  function h(i,j,k){ return Math.sin(i*127.1+j*311.7+k*74.7)*43758.5453 % 1; }
+  const a=h(X,Y,Z), b=h(X+1,Y,Z), c=h(X,Y+1,Z), d=h(X+1,Y+1,Z);
+  const e=h(X,Y,Z+1), f=h(X+1,Y,Z+1), g2=h(X,Y+1,Z+1), i=h(X+1,Y+1,Z+1);
+  const x1=a+(b-a)*u, x2=c+(d-c)*u, x3=e+(f-e)*u, x4=g2+(i-g2)*u;
+  return (x1+(x2-x1)*v)+((x3+(x4-x3)*v)-(x1+(x2-x1)*v))*w;
 }
-const ACTUAL=pi;
-const tGeo=new THREE.BufferGeometry();
-tGeo.setAttribute('position',new THREE.BufferAttribute(tPos.slice(0,ACTUAL*3),3));
-tGeo.setAttribute('aPhase',  new THREE.BufferAttribute(tPh.slice(0,ACTUAL),1));
-tGeo.setAttribute('aSize',   new THREE.BufferAttribute(tSz.slice(0,ACTUAL),1));
 
-const tMat=new THREE.ShaderMaterial({
-  transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
-  uniforms:{ uTime:{value:0}, uBreath:{value:1}, uPR:{value:renderer.getPixelRatio()}, uTex:{value:GLOW_TEX} },
-  vertexShader:`
-    attribute float aPhase, aSize;
-    uniform float uTime, uBreath, uPR;
-    varying float vA;
-    void main(){
-      vec3 p=position*uBreath;
-      vec4 mv=modelViewMatrix*vec4(p,1.);
-      float pulse=pow(sin(uTime*1.8+aPhase)*.5+.5, 2.5);
-      gl_PointSize=(aSize*(.6+pulse*.8))*uPR*(280./(-mv.z));
-      gl_Position=projectionMatrix*mv;
-      vA=0.045+pulse*0.12;
-    }`,
-  fragmentShader:`
-    uniform sampler2D uTex; varying float vA;
-    void main(){
-      float a=texture2D(uTex,gl_PointCoord).r;
-      if(a<0.01) discard;
-      gl_FragColor=vec4(vec3(.92,.92,.92),vA*a);
-    }`,
-});
-scene.add(new THREE.Points(tGeo,tMat));
+// Build anatomical brain shell — single mesh with cortical fold displacement
+{
+  // Base: icosahedron for smooth sphere, high subdivision for detail
+  const brainGeo = new THREE.IcosahedronGeometry(1, 5);
+  const pos = brainGeo.attributes.position;
+  const brainR = Math.max(RX,RY,RZ) * 0.92;
+
+  for (let i=0; i<pos.count; i++) {
+    let x=pos.getX(i), y=pos.getY(i), z=pos.getZ(i);
+    // Normalize to unit sphere
+    const len=Math.sqrt(x*x+y*y+z*z)||1;
+    x/=len; y/=len; z/=len;
+
+    // Brain shape: oblate with two hemispheres and central fissure
+    const sx = RX, sy = RY*0.85, sz = RZ*0.9;
+    // Central longitudinal fissure — indent along X=0 plane
+    const fissure = 1.0 - 0.12 * Math.exp(-x*x*18);
+    // Temporal lobe bulge at lower sides
+    const temporal = 1.0 + 0.08 * Math.max(0, -y*0.7) * (1-Math.abs(x)*0.3);
+    // Frontal lobe forward extension
+    const frontal = 1.0 + 0.06 * Math.max(0, z*0.8) * (1-Math.abs(y)*0.5);
+    // Cerebellum: slight bump at back-bottom
+    const cerebellum = 1.0 + 0.1 * Math.max(0, -z*0.8) * Math.max(0, -y*0.6);
+
+    // Cortical folds: multi-octave noise displacement
+    const freq1=3.5, freq2=7.0, freq3=14.0;
+    const n = noise3D(x*freq1,y*freq1,z*freq1)*0.06
+            + noise3D(x*freq2,y*freq2,z*freq2)*0.03
+            + noise3D(x*freq3,y*freq3,z*freq3)*0.015;
+
+    const shape = fissure * temporal * frontal * cerebellum;
+    const r = (1.0 + n) * shape;
+    pos.setXYZ(i, x*sx*r, y*sy*r, z*sz*r);
+  }
+  brainGeo.computeVertexNormals();
+
+  // Glass shell — translucent with Fresnel-like edge glow via shader
+  const shellMat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    uniforms: { uColor: { value: new THREE.Color(0x88bbdd) }, uTime: { value: 0 } },
+    vertexShader: `
+      varying vec3 vNormal; varying vec3 vViewDir;
+      void main(){
+        vNormal = normalize(normalMatrix * normal);
+        vec4 mvPos = modelViewMatrix * vec4(position,1.);
+        vViewDir = normalize(-mvPos.xyz);
+        gl_Position = projectionMatrix * mvPos;
+      }`,
+    fragmentShader: `
+      uniform vec3 uColor; uniform float uTime;
+      varying vec3 vNormal; varying vec3 vViewDir;
+      void main(){
+        // Fresnel: edges glow brighter, center see-through
+        float fresnel = 1.0 - abs(dot(vNormal, vViewDir));
+        float edge = pow(fresnel, 2.5);
+        float alpha = edge * 0.12 + 0.015; // very transparent center, visible edges
+        vec3 col = uColor * (0.6 + edge * 0.8);
+        // Subtle pulsing
+        col += uColor * 0.05 * sin(gl_FragCoord.x*0.01 + gl_FragCoord.y*0.01 + uTime*0.5);
+        gl_FragColor = vec4(col, alpha);
+      }`,
+  });
+  const brainShell = new THREE.Mesh(brainGeo, shellMat);
+  brainShell.name = 'brainShell';
+  scene.add(brainShell);
+
+  // Store for animation update
+  window._brainShellMat = shellMat;
+}
+
+// Tissue particles removed — glass brain shell provides spatial context
 
 // ── Neuron meshes ──────────────────────────────────────────────────
 const neuronGroup  = new THREE.Group();
@@ -707,14 +764,15 @@ nodes.forEach(n=>{
   const isHub  = n.nodeType==='project-hub';
   const isGlob = n.nodeType==='global-instruction'||n.nodeType==='settings';
   const isConv = n.nodeType==='conversation';
-  const ei  = isGlob?2.8:isHub?2.0:isConv?0.6:1.2;
+  // Bright emissive neurons — key nodes glow strongly, convs are subtle
+  const ei  = isGlob?3.5:isHub?2.8:isConv?1.0:2.0;
 
   const mat=new THREE.MeshStandardMaterial({
-    color:            col.clone().multiplyScalar(0.12),
+    color:            col.clone().multiplyScalar(0.05),
     emissive:         col,
     emissiveIntensity:ei,
-    transparent:true, opacity: isConv?0.8:0.9,
-    roughness:0.5, metalness:0.0,
+    transparent:true, opacity: isConv?0.85:0.95,
+    roughness:0.3, metalness:0.1,
   });
   const mesh=new THREE.Mesh(sphereGeo(r),mat);
   mesh.position.set(n.bx,n.by,n.bz);
@@ -740,62 +798,147 @@ hubNs.forEach((hub,hi)=>{
   }
 });
 
-// ── Synaptic edges ─────────────────────────────────────────────────
-const drawEdges = edges.filter(e=>{
+// ── Fiber tract connections (curved tubes for strong, lines for weak) ──
+const allDrawEdges = edges.filter(e=>{
   const a=nodeMap[e.source],b=nodeMap[e.target];
   return a&&b&&a.bx!==undefined&&b.bx!==undefined&&(e.weight||0)>=0.2;
 });
 
-const ePosArr=new Float32Array(drawEdges.length*6);
-const eColArr=new Float32Array(drawEdges.length*6);
-drawEdges.forEach((e,i)=>{
+// Sort by weight descending; top 15% become tubes, rest are thin lines
+const sortedEdges = [...allDrawEdges].sort((a,b)=>(b.weight||0)-(a.weight||0));
+const tubeCount = Math.min(Math.max(Math.floor(sortedEdges.length * 0.15), 20), 800);
+const tubeEdges = sortedEdges.slice(0, tubeCount);
+const lineEdges = sortedEdges.slice(tubeCount);
+const drawEdges = allDrawEdges; // keep reference for AP system
+
+// Curved tube tracts (fiber-tract style with CatmullRomCurve3)
+const tractGroup = new THREE.Group();
+tubeEdges.forEach(e => {
+  try {
+    const a=nodeMap[e.source], b=nodeMap[e.target];
+    if (!a||!b||a.bx===undefined||b.bx===undefined) return;
+    const ax=a.bx,ay=a.by,az=a.bz, bx=b.bx,by=b.by,bz=b.bz;
+    // Curved midpoint pulled toward brain center for organic fiber-tract look
+    const mx=(ax+bx)/2, my=(ay+by)/2, mz=(az+bz)/2;
+    const dist=Math.sqrt((bx-ax)**2+(by-ay)**2+(bz-az)**2);
+    if (dist < 0.1) return; // skip zero-length
+    const sag=dist*0.15;
+    const norm=Math.sqrt(mx*mx+my*my+mz*mz)||1;
+    const mid = new THREE.Vector3(mx-mx/norm*sag, my-my/norm*sag, mz-mz/norm*sag);
+    const curve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(ax,ay,az), mid, new THREE.Vector3(bx,by,bz)
+    ]);
+    const w = e.weight||0.3;
+    const radius = (0.15 + w * 0.4) * _brainScale;
+    const tubeGeo = new THREE.TubeGeometry(curve, 12, radius, 5, false);
+    const col = nodeColor(a);
+    // Emissive tube material — fiber tracts glow like DTI tractography
+    const tubeMat = new THREE.MeshStandardMaterial({
+      color: col.clone().multiplyScalar(0.1),
+      emissive: col,
+      emissiveIntensity: 1.5 + w * 2.0,
+      transparent: true,
+      opacity: 0.5 + w * 0.4,
+      roughness: 0.2,
+      metalness: 0.0,
+      depthWrite: false,
+    });
+    tractGroup.add(new THREE.Mesh(tubeGeo, tubeMat));
+  } catch(_) {} // skip malformed edges
+});
+scene.add(tractGroup);
+
+// Thin lines for remaining weaker connections
+const _lineEdges = lineEdges.length > 0 ? lineEdges : [];
+const ePosArr=new Float32Array(Math.max(_lineEdges.length,1)*6);
+const eColArr=new Float32Array(Math.max(_lineEdges.length,1)*6);
+_lineEdges.forEach((e,i)=>{
   const a=nodeMap[e.source],b=nodeMap[e.target];
+  if (!a||!b) return;
   ePosArr.set([a.bx,a.by,a.bz,b.bx,b.by,b.bz],i*6);
-  const isConvEdge = a.nodeType==='conversation'||b.nodeType==='conversation';
-  const w = isConvEdge
-    ? (e.weight||.2)*0.06
-    : Math.min((e.weight||.3)*0.22, 0.2);
-  eColArr.set([w,w,w,w,w,w],i*6);
+  const col = nodeColor(a);
+  const w = 0.25 + (e.weight||0.1)*0.35;
+  eColArr.set([col.r*w, col.g*w, col.b*w, col.r*w, col.g*w, col.b*w],i*6);
 });
 const eGeo=new THREE.BufferGeometry();
 eGeo.setAttribute('position',new THREE.BufferAttribute(ePosArr,3));
 eGeo.setAttribute('color',   new THREE.BufferAttribute(eColArr,3));
-scene.add(new THREE.LineSegments(eGeo,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:0.8,blending:THREE.AdditiveBlending,depthWrite:false})));
+scene.add(new THREE.LineSegments(eGeo,new THREE.LineBasicMaterial({
+  vertexColors:true, transparent:true, opacity:0.45,
+  blending:THREE.NormalBlending, depthWrite:false
+})));
 
-// ── Action potentials (white impulses) ─────────────────────────────
-// Speed model: cortex (surface, r≈95) fires fast; core (r≈0) fires slow.
-// Biological range: myelinated axons ~120 m/s, unmyelinated ~0.5 m/s.
-// Here: surfaceSpeed ≈ 0.035 per frame, deepSpeed ≈ 0.006 per frame.
-const AP_POOL   = [];
-const AP_EDGES  = drawEdges.filter(e=>(e.weight||0)>=0.4&&nodeMap[e.source]?.nodeType!=='conversation'&&nodeMap[e.target]?.nodeType!=='conversation');
-const AP_GEO    = new THREE.SphereGeometry(0.85,5,4);
-const AP_MAT    = new THREE.MeshBasicMaterial({color:new THREE.Color(1,1,1),transparent:true,opacity:0.92,blending:THREE.AdditiveBlending,depthWrite:false});
+// ── Electric signal impulses along real fiber tracts ───────────────
+// Signals follow the same CatmullRomCurve3 paths as the tubes.
+// Visual: small bright core + trailing glow = electric impulse, not a blob.
+const AP_POOL = [];
+const AP_CURVES = []; // precomputed curves matching tubeEdges
+
+// Build curves for each tube edge (same logic as tube creation)
+tubeEdges.forEach(e => {
+  const a=nodeMap[e.source], b=nodeMap[e.target];
+  if (!a||!b||a.bx===undefined||b.bx===undefined) { AP_CURVES.push(null); return; }
+  const ax=a.bx,ay=a.by,az=a.bz, bx=b.bx,by=b.by,bz=b.bz;
+  const dist=Math.sqrt((bx-ax)**2+(by-ay)**2+(bz-az)**2);
+  if (dist < 0.1) { AP_CURVES.push(null); return; }
+  const mx=(ax+bx)/2, my=(ay+by)/2, mz=(az+bz)/2;
+  const sag=dist*0.15;
+  const norm=Math.sqrt(mx*mx+my*my+mz*mz)||1;
+  const mid = new THREE.Vector3(mx-mx/norm*sag, my-my/norm*sag, mz-mz/norm*sag);
+  AP_CURVES.push(new THREE.CatmullRomCurve3([
+    new THREE.Vector3(ax,ay,az), mid, new THREE.Vector3(bx,by,bz)
+  ]));
+});
+const AP_VALID = AP_CURVES.map((c,i) => c ? i : -1).filter(i => i >= 0);
+
+// Electric impulse geometry — small bright point
+const AP_GEO = new THREE.SphereGeometry(0.4*_brainScale, 6, 4);
+// Trail geometry — elongated along direction
+const AP_TRAIL_GEO = new THREE.CylinderGeometry(0.15*_brainScale, 0.02*_brainScale, 3*_brainScale, 4, 1);
+AP_TRAIL_GEO.rotateX(Math.PI/2); // align with Z axis for lookAt
+
 let lastAP=0;
 
-function apDepthSpeed(n) {
-  // Depth factor: 0=core (slow), 1=cortex (fast)
-  const r=Math.sqrt((n.bx||0)**2+(n.by||0)**2+(n.bz||0)**2);
-  const depth=Math.min(r/95,1); // 95 = cortex radius
-  return 0.006 + depth * 0.029 + Math.random() * 0.008;
-}
-
 function fireAP() {
-  if (AP_POOL.length>=50||!AP_EDGES.length) return;
-  const e=AP_EDGES[Math.floor(Math.random()*AP_EDGES.length)];
-  const src=nodeMap[e.source],tgt=nodeMap[e.target];
-  if (!src||!tgt) return;
-  const m=new THREE.Mesh(AP_GEO,AP_MAT.clone());
-  // Size reflects edge weight — heavier = brighter/larger
-  const w=Math.min(e.weight||0.5,1);
-  m.scale.setScalar(0.7+w*0.8);
-  scene.add(m);
-  const speed=apDepthSpeed(src)*(0.85+w*0.3);
-  AP_POOL.push({m,src,tgt,t:0,speed});
+  if (AP_POOL.length>=80||!AP_VALID.length) return;
+  const ci = AP_VALID[Math.floor(Math.random()*AP_VALID.length)];
+  const curve = AP_CURVES[ci];
+  const e = tubeEdges[ci];
+  const src=nodeMap[e.source], tgt=nodeMap[e.target];
+  if (!src||!tgt||!curve) return;
+
+  const srcCol = nodeColor(src);
+  const w = Math.min(e.weight||0.5, 1);
+
+  // Bright core
+  const coreMat = new THREE.MeshBasicMaterial({
+    color: new THREE.Color(1,1,1),
+    transparent: true, opacity: 1.0,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const core = new THREE.Mesh(AP_GEO, coreMat);
+  core.scale.setScalar(0.5 + w * 0.5);
+
+  // Colored trail
+  const trailMat = new THREE.MeshBasicMaterial({
+    color: srcCol.clone().lerp(new THREE.Color(1,1,1), 0.3),
+    transparent: true, opacity: 0.7,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const trail = new THREE.Mesh(AP_TRAIL_GEO, trailMat);
+
+  const group = new THREE.Group();
+  group.add(core);
+  group.add(trail);
+  scene.add(group);
+
+  const speed = (0.008 + Math.random()*0.015) * (0.8 + w*0.4);
+  AP_POOL.push({ group, core, trail, curve, src, tgt, t: 0, speed, w });
 }
 
 // ── Lights ────────────────────────────────────────────────────────
 scene.add(new THREE.AmbientLight(0x111111,0.8));
-const pl=new THREE.PointLight(0xffffff,0.5,600); pl.position.set(0,0,0); scene.add(pl);
+const pl=new THREE.PointLight(0xffffff,0.5,600*_brainScale); pl.position.set(0,0,0); scene.add(pl);
 
 // ── Filter State ──────────────────────────────────────────────────
 let activeFilter  = 'all';
@@ -808,8 +951,117 @@ let layoutMode    = 'cluster';
 
 // Conversations hidden by default (showConvs controls this);
 
-// Shared edge color buffer
+// Build node→connection index using separate tube and line maps
+// tubeEdges[i] → tractGroup.children[i] (tubes can skip due to try/catch, so map by edge identity)
+const tubeEdgeSet = new Set(tubeEdges);
+const lineEdgeSet = new Set(_lineEdges);
+
+// Map edge objects to their tube mesh index or line buffer index
+const edgeToTubeIdx = new Map();
+let tubeIdx = 0;
+tubeEdges.forEach(e => {
+  // Only count edges that actually created a mesh (dist > 0.1, valid nodes)
+  const a=nodeMap[e.source], b=nodeMap[e.target];
+  if (a && b && a.bx!==undefined && b.bx!==undefined) {
+    const dist=Math.sqrt((b.bx-a.bx)**2+(b.by-a.by)**2+(b.bz-a.bz)**2);
+    if (dist >= 0.1 && tubeIdx < tractGroup.children.length) {
+      edgeToTubeIdx.set(e, tubeIdx);
+      tubeIdx++;
+    }
+  }
+});
+
+const edgeToLineIdx = new Map();
+_lineEdges.forEach((e, i) => { edgeToLineIdx.set(e, i); });
+
+// Build node→edge map
+const nodeEdgeMap = {};
+allDrawEdges.forEach(e => {
+  const entry = { edge: e, other: e.target, isTube: tubeEdgeSet.has(e) };
+  if (!nodeEdgeMap[e.source]) nodeEdgeMap[e.source] = [];
+  nodeEdgeMap[e.source].push(entry);
+  // Reverse direction
+  const entry2 = { edge: e, other: e.source, isTube: tubeEdgeSet.has(e) };
+  if (!nodeEdgeMap[e.target]) nodeEdgeMap[e.target] = [];
+  nodeEdgeMap[e.target].push(entry2);
+});
+
+// Shared edge color buffer (for thin line edges)
 const eColBuf = eGeo.attributes.color;
+
+// Connection highlight state
+let _highlightedTubes = [];
+let _highlightedLines = [];
+let _connectedNodeIds = new Set();
+
+function highlightConnections(nodeId) {
+  clearConnectionHighlights();
+  const conns = nodeEdgeMap[nodeId];
+  if (!conns) return;
+
+  conns.forEach(c => {
+    _connectedNodeIds.add(c.other);
+    const e = c.edge;
+    const w = e.weight || 0.3;
+
+    if (c.isTube) {
+      // Highlight tube tract
+      const ti = edgeToTubeIdx.get(e);
+      if (ti !== undefined && tractGroup.children[ti]) {
+        const tube = tractGroup.children[ti];
+        tube._origOpacity = tube.material.opacity;
+        tube._origEmissive = tube.material.emissiveIntensity;
+        tube.material.opacity = 0.95;
+        tube.material.emissiveIntensity = 5.0 + w * 4.0;
+        _highlightedTubes.push(tube);
+      }
+    } else {
+      // Highlight thin line edge
+      const li = edgeToLineIdx.get(e);
+      if (li !== undefined) {
+        const srcNode = nodeMap[e.source];
+        const col = srcNode ? nodeColor(srcNode) : new THREE.Color(1,1,1);
+        const brightness = 0.7 + w * 0.3;
+        eColBuf.setXYZ(li*2,   col.r*brightness, col.g*brightness, col.b*brightness);
+        eColBuf.setXYZ(li*2+1, col.r*brightness, col.g*brightness, col.b*brightness);
+        _highlightedLines.push(li);
+      }
+    }
+  });
+  eColBuf.needsUpdate = true;
+
+  // Brighten connected neurons
+  _connectedNodeIds.forEach(id => {
+    const mesh = neuronMeshes[id];
+    if (mesh) {
+      mesh._preHighlightEmit = mesh.material.emissiveIntensity;
+      mesh.material.emissiveIntensity = mesh.material.emissiveIntensity * 2.5;
+    }
+  });
+}
+
+function clearConnectionHighlights() {
+  // Restore tubes
+  _highlightedTubes.forEach(tube => {
+    if (tube._origOpacity !== undefined) tube.material.opacity = tube._origOpacity;
+    if (tube._origEmissive !== undefined) tube.material.emissiveIntensity = tube._origEmissive;
+  });
+  _highlightedTubes = [];
+
+  // Restore line edges (will be fixed by next applyFilters call)
+  _highlightedLines = [];
+
+  // Restore connected neurons
+  _connectedNodeIds.forEach(id => {
+    const mesh = neuronMeshes[id];
+    if (mesh && mesh._preHighlightEmit !== undefined) {
+      mesh.material.emissiveIntensity = mesh._preHighlightEmit;
+      delete mesh._preHighlightEmit;
+    }
+  });
+  _connectedNodeIds = new Set();
+  applyFilters(); // rebuild edge colors to default
+}
 
 function applyFilters() {
   const q = searchQuery.toLowerCase();
@@ -1029,6 +1281,7 @@ function closePanel() {
     selectedNode._mesh.material.emissiveIntensity = selectedNode._baseEmit;
     selectedNode = null;
   }
+  clearConnectionHighlights();
 }
 
 function formatDuration(start, end) {
@@ -1045,6 +1298,7 @@ function openPanel(n) {
   if (selectedNode) selectedNode._mesh.material.emissiveIntensity = selectedNode._baseEmit;
   selectedNode = n;
   n._mesh.material.emissiveIntensity = n._baseEmit * 3;
+  highlightConnections(n.id);
 
   const hexCol = '#' + nodeColor(n).getHexString();
 
@@ -1469,7 +1723,7 @@ document.getElementById('analytics-toggle-brain').addEventListener('click',toggl
 
 // HUD
 document.getElementById('hud').textContent =
-  `${nodes.length} neurons · ${drawEdges.length} synapses · ${ACTUAL.toLocaleString()} particles`;
+  `${nodes.length} neurons · ${drawEdges.length} synapses · ${tubeCount} fiber tracts`;
 
 // Initial state
 applyFilters();
@@ -1481,10 +1735,9 @@ let frame=0;
   frame++;
   const t=frame*.016;
 
-  // Tissue breathe
-  tMat.uniforms.uTime.value  = t;
-  const br=1+Math.sin(t*.34)*.018;
-  tMat.uniforms.uBreath.value= br;
+  // Brain shell breathe + neuron pulse
+  if (window._brainShellMat) window._brainShellMat.uniforms.uTime.value = t;
+  const br=1+Math.sin(t*.34)*.012;
   neuronGroup.scale.setScalar(br);
 
   // Hover: tooltip + highlight
@@ -1513,23 +1766,30 @@ let frame=0;
   });
 
   // Action potentials — fire bursts like real neural activity
-  if (frame-lastAP>3+Math.floor(Math.random()*7)){
-    fireAP();
-    if (Math.random()<0.35) fireAP(); // occasional burst of 2
+  if (frame-lastAP>2+Math.floor(Math.random()*4)){
+    fireAP(); fireAP(); // fire pairs for visible activity
+    if (Math.random()<0.5) fireAP(); // burst of 3
     lastAP=frame;
   }
   for (let i=AP_POOL.length-1;i>=0;i--){
     const ap=AP_POOL[i]; ap.t+=ap.speed;
     if (ap.t>=1){
-      scene.remove(ap.m); ap.m.material.dispose(); AP_POOL.splice(i,1);
+      scene.remove(ap.group);
+      ap.core.material.dispose(); ap.trail.material.dispose();
+      AP_POOL.splice(i,1);
+      // Flash target neuron on arrival
       const tm=neuronMeshes[ap.tgt.id];
       if (tm){ const b=ap.tgt._baseEmit; tm.material.emissiveIntensity=b*3.5; setTimeout(()=>{ if(tm.material) tm.material.emissiveIntensity=b; },160); }
     } else {
-      ap.m.position.set(
-        (ap.src.bx+(ap.tgt.bx-ap.src.bx)*ap.t)*br,
-        (ap.src.by+(ap.tgt.by-ap.src.by)*ap.t)*br,
-        (ap.src.bz+(ap.tgt.bz-ap.src.bz)*ap.t)*br
-      );
+      // Follow the curve path
+      const pos = ap.curve.getPointAt(Math.min(ap.t, 1));
+      ap.group.position.copy(pos).multiplyScalar(br);
+      // Orient trail along curve tangent
+      const tangent = ap.curve.getTangentAt(Math.min(ap.t, 1));
+      ap.trail.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1), tangent.normalize());
+      // Fade trail as it approaches target
+      ap.trail.material.opacity = 0.7 * (1 - ap.t * 0.5);
+      ap.core.material.opacity = 0.8 + 0.2 * Math.sin(ap.t * 20); // electric flicker
     }
   }
 
@@ -1542,6 +1802,14 @@ window.addEventListener('resize',()=>{
   camera.aspect=W2/H2; camera.updateProjectionMatrix();
   renderer.setSize(W2,H2); composer.setSize(W2,H2);
 });
+} catch(err) {
+  var d = document.createElement('div');
+  d.style.cssText = 'position:fixed;top:0;left:0;right:0;background:rgba(255,0,0,0.95);color:#fff;padding:16px;z-index:9999;font:12px monospace;white-space:pre-wrap';
+  d.textContent = 'BRAIN ERROR: ' + err.message + '\n' + err.stack;
+  document.body.appendChild(d);
+  console.error(err);
+}
+})();
 </script>
 </body>
 </html>

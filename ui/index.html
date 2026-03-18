@@ -286,14 +286,14 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-    font-size: 9px;
-    color: #2a3a4a;
+    font-size: 10px;
+    color: #8ca0b8;
     z-index: 100;
-    background: rgba(3,5,8,0.6);
-    backdrop-filter: blur(12px);
-    padding: 10px 14px;
+    background: rgba(3,5,8,0.88);
+    backdrop-filter: blur(16px);
+    padding: 12px 16px;
     border-radius: 6px;
-    border: 1px solid rgba(0,210,255,0.05);
+    border: 1px solid rgba(0,210,255,0.12);
   }
   .legend-item { display: flex; align-items: center; gap: 6px; }
   .legend-dot { width: 6px; height: 6px; border-radius: 50%; box-shadow: 0 0 6px currentColor; }
@@ -554,19 +554,19 @@
 <div id="chart-tooltip"></div>
 
 <div id="legend">
-  <div style="font-size:9px;color:#3a4a5a;margin-bottom:6px;letter-spacing:0.05em">KNOWLEDGE NODES</div>
+  <div style="font-size:9px;color:#5a7a9a;margin-bottom:6px;letter-spacing:0.05em">KNOWLEDGE NODES</div>
   <div class="legend-item"><div class="legend-dot" style="background:#dce6ff;box-shadow:0 0 8px #dce6ff"></div>Project Hub</div>
   <div class="legend-item"><div class="legend-diamond" style="background:#29b6f6"></div>Global (CLAUDE.md)</div>
   <div class="legend-item"><div class="legend-square" style="background:#ffb300"></div>Settings</div>
   <div class="legend-item"><div class="legend-diamond" style="background:#ffd600"></div>Memory Index</div>
   <div class="legend-item"><div class="legend-square" style="background:#ff78dc"></div>CLAUDE.md</div>
-  <div style="font-size:9px;color:#3a4a5a;margin:6px 0 4px;letter-spacing:0.05em">MEMORIES</div>
+  <div style="font-size:9px;color:#5a7a9a;margin:6px 0 4px;letter-spacing:0.05em">MEMORIES</div>
   <div class="legend-item"><div class="legend-dot" style="background:#00d2ff"></div>User pref</div>
   <div class="legend-item"><div class="legend-dot" style="background:#ff6b35"></div>Feedback</div>
   <div class="legend-item"><div class="legend-dot" style="background:#26de81"></div>Project ctx</div>
   <div class="legend-item"><div class="legend-dot" style="background:#a55eea"></div>Reference</div>
   <div class="legend-item"><div class="legend-hex" style="opacity:0.4"></div><span style="opacity:0.5">Chatlogs (hidden)</span></div>
-  <div style="font-size:9px;color:#3a4a5a;margin:6px 0 4px;letter-spacing:0.05em">TOOLS &amp; WORK</div>
+  <div style="font-size:9px;color:#5a7a9a;margin:6px 0 4px;letter-spacing:0.05em">TOOLS &amp; WORK</div>
   <div class="legend-item"><div class="legend-dot" style="background:#9c27b0"></div>Plugin</div>
   <div class="legend-item"><div class="legend-dot" style="background:#6c63ff"></div>MCP Tool</div>
   <div class="legend-item"><div class="legend-diamond" style="background:#1abc9c"></div>Plan</div>
@@ -579,6 +579,7 @@
 </script>
 
 <script>
+(async function() {
 // Error overlay for debugging
 window.addEventListener('error', function(e) {
   var d = document.createElement('div');
@@ -654,7 +655,14 @@ function hexOf(type) {
   return `rgb(${c.r},${c.g},${c.b})`;
 }
 
-const data = window.__GRAPH_DATA__ || { nodes: [], edges: [] };
+// Support async loading via __GRAPH_DATA_URL__ or inline __GRAPH_DATA__
+let data;
+if (window.__GRAPH_DATA_URL__) {
+  const resp = await fetch(window.__GRAPH_DATA_URL__);
+  data = await resp.json();
+} else {
+  data = window.__GRAPH_DATA__ || { nodes: [], edges: [] };
+}
 const nodes = data.nodes.map(n => ({
   ...n,
   x: 0, y: 0, z: 0,
@@ -692,14 +700,17 @@ edges.forEach((e, i) => {
 // THREE.JS SCENE
 // ═══════════════════════════════════════════════════════════════════
 
+// Global layout scale: spread everything out for large graphs
+const layoutScale = Math.max(1.0, Math.sqrt(nodes.length / 100));
+
 let W = window.innerWidth, H = window.innerHeight;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x030508);
-scene.fog = new THREE.FogExp2(0x030508, 0.0008);
+scene.fog = new THREE.FogExp2(0x030508, 0.0008 / layoutScale);
 
-const camera = new THREE.PerspectiveCamera(60, W / H, 1, 5000);
-camera.position.set(0, 60, 580);
+const camera = new THREE.PerspectiveCamera(60, W / H, 1, 5000 * layoutScale);
+camera.position.set(0, 60 * layoutScale, 580 * layoutScale);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
 renderer.setSize(W, H);
@@ -715,8 +726,8 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 controls.rotateSpeed = 0.4;
 controls.zoomSpeed = 0.8;
-controls.minDistance = 50;
-controls.maxDistance = 2000;
+controls.minDistance = 50 * layoutScale;
+controls.maxDistance = 2000 * layoutScale;
 controls.autoRotate = true;
 controls.autoRotateSpeed = 0.15;
 
@@ -743,11 +754,15 @@ scene.add(dirLight);
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 
+// Scale bloom down when edge density is high to prevent white blowout
+// Bloom: enough to make emissive nodes glow, threshold prevents edge blowout
+const bloomStrength = Math.max(0.4, Math.min(1.0, 1.0 * Math.min(1.0, 8000 / Math.max(edges.length, 1))));
+const bloomThreshold = edges.length > 5000 ? 0.4 : edges.length > 1000 ? 0.3 : 0.15;
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(W, H),
-  1.2,   // strength
-  0.5,   // radius
-  0.15   // threshold
+  bloomStrength,
+  0.5,
+  bloomThreshold
 );
 composer.addPass(bloomPass);
 
@@ -925,13 +940,13 @@ const brainWireMat = new THREE.ShaderMaterial({
 const brainGroup = new THREE.Group();
 
 // Main surface hull
-const hullGeo = new THREE.SphereGeometry(400, 64, 48);
+const hullGeo = new THREE.SphereGeometry(400 * layoutScale, 64, 48);
 hullGeo.applyMatrix4(new THREE.Matrix4().makeScale(1.0, 0.72, 0.88));
 const hullMesh = new THREE.Mesh(hullGeo, brainHullMat);
 brainGroup.add(hullMesh);
 
 // Wireframe overlay (slightly smaller)
-const wireGeo = new THREE.SphereGeometry(398, 48, 36);
+const wireGeo = new THREE.SphereGeometry(398 * layoutScale, 48, 36);
 wireGeo.applyMatrix4(new THREE.Matrix4().makeScale(1.0, 0.72, 0.88));
 const wireMesh = new THREE.Mesh(wireGeo, brainWireMat);
 brainGroup.add(wireMesh);
@@ -941,13 +956,41 @@ const hemiMat = new THREE.MeshBasicMaterial({
   color: HOLO_COLOR, transparent: true, opacity: 0.0,
   blending: THREE.AdditiveBlending, depthWrite: false,
 });
-const hemiRingGeo = new THREE.TorusGeometry(288, 0.8, 6, 128);
+const hemiRingGeo = new THREE.TorusGeometry(288 * layoutScale, 0.8, 6, 128);
 const hemiRing = new THREE.Mesh(hemiRingGeo, hemiMat);
 hemiRing.rotation.y = Math.PI / 2;
 brainGroup.add(hemiRing);
 
 brainGroup.visible = false;
 scene.add(brainGroup);
+
+// Default-mode glass shell — subtle spatial context visible without holo mode
+const defaultShellMat = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, side: THREE.DoubleSide,
+  uniforms: { uColor: { value: new THREE.Color(0x446688) } },
+  vertexShader: `
+    varying vec3 vNormal; varying vec3 vViewDir;
+    void main(){
+      vNormal = normalize(normalMatrix * normal);
+      vec4 mvPos = modelViewMatrix * vec4(position,1.);
+      vViewDir = normalize(-mvPos.xyz);
+      gl_Position = projectionMatrix * mvPos;
+    }`,
+  fragmentShader: `
+    uniform vec3 uColor;
+    varying vec3 vNormal; varying vec3 vViewDir;
+    void main(){
+      float fresnel = 1.0 - abs(dot(vNormal, vViewDir));
+      float edge = pow(fresnel, 3.0);
+      float alpha = edge * 0.08 + 0.008;
+      gl_FragColor = vec4(uColor * (0.5 + edge * 0.6), alpha);
+    }`,
+});
+const defaultShellGeo = new THREE.SphereGeometry(410 * layoutScale, 48, 36);
+defaultShellGeo.applyMatrix4(new THREE.Matrix4().makeScale(1.0, 0.72, 0.88));
+const defaultShell = new THREE.Mesh(defaultShellGeo, defaultShellMat);
+defaultShell.name = 'defaultShell';
+scene.add(defaultShell);
 
 // ── Holographic node shader ────────────────────────────────────────
 const holoNodeVert = `
@@ -1086,13 +1129,15 @@ function toggleHoloMode() {
   if (holoMode) {
     buildHoloDendrites();
     brainGroup.visible = true;
+    defaultShell.visible = false;
     applyHoloMaterials();
-    // Boost bloom
-    bloomPass.strength = 2.2;
+    // Boost bloom (scaled)
+    bloomPass.strength = Math.max(0.5, Math.min(1.8, 1.8 * Math.min(1.0, 8000 / Math.max(edges.length, 1))));
     bloomPass.radius   = 0.8;
   } else {
     restoreOriginalMaterials();
-    bloomPass.strength = 1.2;
+    defaultShell.visible = true;
+    bloomPass.strength = bloomStrength;
     bloomPass.radius   = 0.5;
   }
 }
@@ -1184,6 +1229,10 @@ const torusGeo   = new THREE.TorusGeometry(0.8, 0.3, 8, 16); // mcp-tool - torus
 const dodecaGeo  = new THREE.DodecahedronGeometry(1, 0);   // plugin
 const coneGeo    = new THREE.ConeGeometry(0.8, 1.6, 5);    // todo - cone
 
+// Density-based scaling: reduce visual intensity when graph is large
+const nodeDensityScale = Math.min(1.0, 400 / Math.max(nodes.length, 1));
+const emissiveScale = Math.max(0.65, nodeDensityScale);
+
 function nodeScale(n) {
   if (n.nodeType === 'conversation') {
     const msgFactor = Math.min(Math.log2((n.messageCount || 1) + 1) * 0.8, 3);
@@ -1204,10 +1253,11 @@ function createNodeMaterial(color, nodeType) {
   const isConv = nodeType === 'conversation';
   const isHub = nodeType === 'project-hub';
   const isGlobal = nodeType === 'global-instruction';
+  const baseEmissive = isGlobal ? 3.5 : isHub ? 1.5 : isConv ? 1.8 : 2.2;
   return new THREE.MeshStandardMaterial({
     color: color.clone().multiplyScalar(isHub ? 0.05 : 0.15),
     emissive: color,
-    emissiveIntensity: isGlobal ? 3.5 : isHub ? 1.5 : isConv ? 1.8 : 2.2,
+    emissiveIntensity: baseEmissive * emissiveScale,
     metalness: isHub ? 0.9 : isConv ? 0.6 : 0.3,
     roughness: isHub ? 0.05 : isConv ? 0.2 : 0.4,
     transparent: true,
@@ -1246,17 +1296,19 @@ nodes.forEach(n => {
   if (isConv) core.rotation.y = Math.random() * Math.PI;
   group.add(core);
 
-  // Halo sprite
+  // Halo sprite — scale opacity down with node density
+  const haloBaseOpacity = isHub ? 0.5 : isGlobal ? 0.6 : isSettings ? 0.45 : isMemIdx || isProjFile ? 0.35 : isConv ? 0.15 : 0.25;
   const haloMat = new THREE.SpriteMaterial({
     map: glowTexture,
     color: color,
     transparent: true,
-    opacity: isHub ? 0.5 : isGlobal ? 0.6 : isSettings ? 0.45 : isMemIdx || isProjFile ? 0.35 : isConv ? 0.15 : 0.25,
+    opacity: haloBaseOpacity * emissiveScale,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
   const halo = new THREE.Sprite(haloMat);
-  halo.scale.setScalar(scale * (isHub ? 8 : isGlobal ? 9 : isMemIdx || isProjFile ? 6 : 5));
+  const haloSizeScale = Math.max(0.5, nodeDensityScale);
+  halo.scale.setScalar(scale * (isHub ? 8 : isGlobal ? 9 : isMemIdx || isProjFile ? 6 : 5) * haloSizeScale);
   group.add(halo);
 
   // Wireframe ring for conversations
@@ -1265,7 +1317,7 @@ nodes.forEach(n => {
     const ringMat = new THREE.MeshBasicMaterial({
       color: color,
       transparent: true,
-      opacity: 0.3,
+      opacity: 0.3 * emissiveScale,
       blending: THREE.AdditiveBlending,
     });
     const ring = new THREE.Mesh(ringGeo, ringMat);
@@ -1280,7 +1332,7 @@ nodes.forEach(n => {
     const orbitMat = new THREE.MeshBasicMaterial({
       color: color,
       transparent: true,
-      opacity: 0.4,
+      opacity: 0.4 * emissiveScale,
       blending: THREE.AdditiveBlending,
     });
     const orbit = new THREE.Mesh(orbitGeo, orbitMat);
@@ -1351,12 +1403,19 @@ nodes.forEach(n => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// EDGE CREATION
+// EDGE CREATION — Only show strongest connections; rest hidden until click
 // ═══════════════════════════════════════════════════════════════════
+
+// Determine visibility threshold: show top 10% or structural edges
+const edgeWeights = edges.map(e => e.weight || 0).sort((a, b) => b - a);
+const visibleEdgeCount = Math.max(100, Math.floor(edges.length * 0.10));
+const edgeVisThreshold = edgeWeights[Math.min(visibleEdgeCount, edgeWeights.length - 1)] || 0;
+const structuralTypes = new Set(['hub-mem', 'global-hub', 'plugin-global', 'mcp-hub', 'mcp-proj', 'plugin-tool', 'cross-ref']);
 
 const edgePositions = new Float32Array(edges.length * 6);
 const edgeColors = new Float32Array(edges.length * 6);
 const edgeBaseAlphas = new Float32Array(edges.length);
+const edgeVisible = new Uint8Array(edges.length); // 1 = visible by default
 
 const edgeGeometry = new THREE.BufferGeometry();
 edgeGeometry.setAttribute('position', new THREE.BufferAttribute(edgePositions, 3));
@@ -1366,27 +1425,35 @@ const edgeMaterial = new THREE.LineBasicMaterial({
   vertexColors: true,
   transparent: true,
   opacity: 0.6,
-  blending: THREE.AdditiveBlending,
+  blending: THREE.NormalBlending,
   depthWrite: false,
 });
 
 const edgeLines = new THREE.LineSegments(edgeGeometry, edgeMaterial);
 scene.add(edgeLines);
 
-// Initialize edge colors
+// Initialize edge colors — only visible edges get color, rest are black (invisible)
 edges.forEach((e, i) => {
+  const isStructural = structuralTypes.has(e.edgeType);
+  const isStrong = (e.weight || 0) >= edgeVisThreshold;
+  const show = isStructural || isStrong;
+  edgeVisible[i] = show ? 1 : 0;
+
   const srcNode = nodeMap[e.source];
   const color = srcNode ? (TYPE_COLORS[srcNode.type] || TYPE_COLORS[srcNode.nodeType] || TYPE_COLORS.unknown) : TYPE_COLORS.unknown;
-  // Axon edges (hub↔global, plugin↔global) are brighter; dendrite edges (memories) are dimmer
-  const isAxon = ['global-hub', 'hub-mem', 'plugin-global', 'mcp-hub', 'plan-hub'].includes(e.edgeType) && e.weight > 0.5;
-  const dim = isAxon ? 0.18 + e.weight * 0.15 : 0.05 + (e.weight || 0.1) * 0.08;
-  edgeColors[i * 6]     = color.r * dim;
-  edgeColors[i * 6 + 1] = color.g * dim;
-  edgeColors[i * 6 + 2] = color.b * dim;
-  edgeColors[i * 6 + 3] = color.r * dim;
-  edgeColors[i * 6 + 4] = color.g * dim;
-  edgeColors[i * 6 + 5] = color.b * dim;
-  edgeBaseAlphas[i] = dim;
+  const isAxon = isStructural && (e.weight || 0) > 0.5;
+  const baseDim = isAxon ? 0.35 + (e.weight || 0) * 0.35 : 0.15 + (e.weight || 0.1) * 0.5;
+
+  if (show) {
+    edgeColors[i * 6]     = color.r * baseDim;
+    edgeColors[i * 6 + 1] = color.g * baseDim;
+    edgeColors[i * 6 + 2] = color.b * baseDim;
+    edgeColors[i * 6 + 3] = color.r * baseDim;
+    edgeColors[i * 6 + 4] = color.g * baseDim;
+    edgeColors[i * 6 + 5] = color.b * baseDim;
+  }
+  // Hidden edges stay black (0,0,0) = invisible
+  edgeBaseAlphas[i] = baseDim;
 });
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1400,7 +1467,7 @@ const flowColors = new Float32Array(NUM_FLOW_PARTICLES * 3);
 const flowSizes = new Float32Array(NUM_FLOW_PARTICLES);
 
 for (let i = 0; i < NUM_FLOW_PARTICLES; i++) {
-  const ei = Math.floor(Math.random() * edges.length);
+  const ei = edges.length > 0 ? Math.floor(Math.random() * edges.length) : -1;
   flowParticleData.push({
     edgeIdx: ei,
     progress: Math.random(),
@@ -1409,7 +1476,8 @@ for (let i = 0; i < NUM_FLOW_PARTICLES; i++) {
   flowPositions[i * 3] = 9999;
   flowPositions[i * 3 + 1] = 9999;
   flowPositions[i * 3 + 2] = 9999;
-  const srcNode = nodeMap[edges[ei].source];
+  const edge = ei >= 0 ? edges[ei] : null;
+  const srcNode = edge ? nodeMap[edge.source] : null;
   const c = srcNode ? (TYPE_COLORS[srcNode.type] || TYPE_COLORS.unknown) : TYPE_COLORS.unknown;
   flowColors[i * 3] = c.r;
   flowColors[i * 3 + 1] = c.g;
@@ -1434,7 +1502,7 @@ const flowMat = new THREE.ShaderMaterial({
     void main() {
       vColor = color;
       vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
-      gl_PointSize = size * (200.0 / -mvPos.z);
+      gl_PointSize = size * (300.0 / -mvPos.z);
       gl_Position = projectionMatrix * mvPos;
     }
   `,
@@ -1443,7 +1511,7 @@ const flowMat = new THREE.ShaderMaterial({
     void main() {
       float d = length(gl_PointCoord - 0.5);
       if (d > 0.5) discard;
-      float alpha = smoothstep(0.5, 0.0, d) * 0.7;
+      float alpha = smoothstep(0.5, 0.0, d) * 0.9;
       gl_FragColor = vec4(vColor, alpha);
     }
   `,
@@ -1526,20 +1594,20 @@ function initPositions3D() {
     n._pinned = true;
   });
 
-  // Inner axon cloud: Plans orbit nucleus at r=85
-  dendrite(planNs, 0, 0, 0, 85, 0);
+  // Inner axon cloud: Plans orbit nucleus
+  dendrite(planNs, 0, 0, 0, 85 * layoutScale, 0);
   planNs.forEach(n => { n._pinned = true; });
 
-  // Plugins: smaller inner orbit at r=60
-  dendrite(pluginNs, 0, 0, 0, 60, Math.PI);
+  // Plugins: smaller inner orbit
+  dendrite(pluginNs, 0, 0, 0, 60 * layoutScale, Math.PI);
   pluginNs.forEach(n => { n._pinned = true; });
 
-  // Todos: transient work items, loose orbit at r=110
-  dendrite(todoNs, 0, 0, 0, 110, GOLDEN_ANGLE * 5);
+  // Todos: transient work items, loose orbit
+  dendrite(todoNs, 0, 0, 0, 110 * layoutScale, GOLDEN_ANGLE * 5);
   todoNs.forEach(n => { n._pinned = false; });
 
-  // CORTEX — Project hubs on Fibonacci sphere r=215, Y compressed → egg/brain shape
-  const HUB_R = 215;
+  // CORTEX — Project hubs on Fibonacci sphere, Y compressed → egg/brain shape
+  const HUB_R = 215 * layoutScale;
   const N_HUBS = hubNs.length;
   hubNs.forEach((hub, hi) => {
     const t = (hi + 0.5) / Math.max(N_HUBS, 1);
@@ -1558,21 +1626,21 @@ function initPositions3D() {
       n.project === hub.project &&
       (n.nodeType === 'memory-index' || n.nodeType === 'project-file' || n.nodeType === 'mcp-tool')
     );
-    dendrite(tier1, cx, cy, cz, 52, azim);
+    dendrite(tier1, cx, cy, cz, 52 * layoutScale, azim);
     tier1.forEach(n => { n._pinned = true; });
 
     // Tier 2: memory nodes radiate outward
     const tier2 = nodes.filter(n =>
       n.project === hub.project && n.nodeType === 'memory'
     );
-    dendrite(tier2, cx, cy, cz, 95, azim + GOLDEN_ANGLE * tier1.length);
+    dendrite(tier2, cx, cy, cz, 95 * layoutScale, azim + GOLDEN_ANGLE * tier1.length);
     tier2.forEach(n => { n._pinned = true; });
 
     // Tier 3: conversations at synaptic tips (free to drift in force layout)
     const tier3 = nodes.filter(n =>
       n.project === hub.project && n.nodeType === 'conversation'
     );
-    dendrite(tier3, cx, cy, cz, 155, azim + GOLDEN_ANGLE * (tier1.length + tier2.length));
+    dendrite(tier3, cx, cy, cz, 155 * layoutScale, azim + GOLDEN_ANGLE * (tier1.length + tier2.length));
   });
 
   // Orphan nodes (no hub)
@@ -1583,7 +1651,7 @@ function initPositions3D() {
     if (n.nodeType === 'plan' || n.nodeType === 'todo' || n.nodeType === 'plugin') return;
     if (n.x !== undefined && n.x !== 0) return;
     const a = (ni / nodes.length) * Math.PI * 2;
-    n.x = Math.cos(a) * 340; n.y = ((ni % 7) - 3) * 18; n.z = Math.sin(a) * 340;
+    n.x = Math.cos(a) * 340 * layoutScale; n.y = ((ni % 7) - 3) * 18 * layoutScale; n.z = Math.sin(a) * 340 * layoutScale;
     n.tx = n.x; n.ty = n.y; n.tz = n.z;
   });
 }
@@ -1810,14 +1878,33 @@ function getHoveredNode(event) {
   return null;
 }
 
+let _prevHighlightedNodes = [];
 function highlightEdges(nodeId) {
-  // Reset all to base
+  // Restore previously highlighted nodes
+  _prevHighlightedNodes.forEach(id => {
+    const mesh = nodeMeshes[id];
+    if (mesh && mesh._preHighlightEmit !== undefined) {
+      mesh.children[0].material.emissiveIntensity = mesh._preHighlightEmit;
+      delete mesh._preHighlightEmit;
+    }
+  });
+  _prevHighlightedNodes = [];
+
+  // Reset edges: show only default-visible edges, dim if a node is selected
   edges.forEach((e, i) => {
     const srcNode = nodeMap[e.source];
     const c = srcNode ? (TYPE_COLORS[srcNode.type] || TYPE_COLORS[srcNode.nodeType] || TYPE_COLORS.unknown) : TYPE_COLORS.unknown;
-    const dim = edgeBaseAlphas[i];
-    edgeColors[i*6] = c.r * dim; edgeColors[i*6+1] = c.g * dim; edgeColors[i*6+2] = c.b * dim;
-    edgeColors[i*6+3] = c.r * dim; edgeColors[i*6+4] = c.g * dim; edgeColors[i*6+5] = c.b * dim;
+    if (!nodeId) {
+      // No selection: show default visible edges
+      const dim = edgeVisible[i] ? edgeBaseAlphas[i] : 0;
+      edgeColors[i*6] = c.r*dim; edgeColors[i*6+1] = c.g*dim; edgeColors[i*6+2] = c.b*dim;
+      edgeColors[i*6+3] = c.r*dim; edgeColors[i*6+4] = c.g*dim; edgeColors[i*6+5] = c.b*dim;
+    } else {
+      // Selection active: dim everything
+      const dim = edgeVisible[i] ? edgeBaseAlphas[i] * 0.08 : 0;
+      edgeColors[i*6] = c.r*dim; edgeColors[i*6+1] = c.g*dim; edgeColors[i*6+2] = c.b*dim;
+      edgeColors[i*6+3] = c.r*dim; edgeColors[i*6+4] = c.g*dim; edgeColors[i*6+5] = c.b*dim;
+    }
   });
 
   if (nodeId && nodeEdgeMap[nodeId]) {
@@ -1825,9 +1912,19 @@ function highlightEdges(nodeId) {
       const e = edges[ei];
       const srcNode = nodeMap[e.source];
       const c = srcNode ? (TYPE_COLORS[srcNode.type] || TYPE_COLORS[srcNode.nodeType] || TYPE_COLORS.unknown) : TYPE_COLORS.unknown;
-      const bright = 1.0;
-      edgeColors[ei*6] = c.r * bright; edgeColors[ei*6+1] = c.g * bright; edgeColors[ei*6+2] = c.b * bright;
-      edgeColors[ei*6+3] = c.r * bright; edgeColors[ei*6+4] = c.g * bright; edgeColors[ei*6+5] = c.b * bright;
+      // Reveal + brighten ALL connected edges (including normally hidden ones)
+      const bright = 0.7 + (e.weight || 0.1) * 0.3;
+      edgeColors[ei*6] = c.r*bright; edgeColors[ei*6+1] = c.g*bright; edgeColors[ei*6+2] = c.b*bright;
+      edgeColors[ei*6+3] = c.r*bright; edgeColors[ei*6+4] = c.g*bright; edgeColors[ei*6+5] = c.b*bright;
+
+      // Brighten connected node
+      const otherId = e.source === nodeId ? e.target : e.source;
+      const mesh = nodeMeshes[otherId];
+      if (mesh && mesh.children[0] && mesh._preHighlightEmit === undefined) {
+        mesh._preHighlightEmit = mesh.children[0].material.emissiveIntensity;
+        mesh.children[0].material.emissiveIntensity = mesh._preHighlightEmit * 2.5;
+        _prevHighlightedNodes.push(otherId);
+      }
     }
   }
 
@@ -2518,13 +2615,18 @@ function updateFlowParticles() {
 
     if (p.progress > 1) {
       // Reassign to random edge
-      p.edgeIdx = Math.floor(Math.random() * edges.length);
+      p.edgeIdx = edges.length > 0 ? Math.floor(Math.random() * edges.length) : -1;
       p.progress = 0;
-      const srcNode = nodeMap[edges[p.edgeIdx].source];
+      const edge = p.edgeIdx >= 0 ? edges[p.edgeIdx] : null;
+      const srcNode = edge ? nodeMap[edge.source] : null;
       const c = srcNode ? (TYPE_COLORS[srcNode.type] || TYPE_COLORS.unknown) : TYPE_COLORS.unknown;
       cols[i*3] = c.r; cols[i*3+1] = c.g; cols[i*3+2] = c.b;
     }
 
+    if (p.edgeIdx < 0 || !edges[p.edgeIdx]) {
+      pos[i*3] = 9999; pos[i*3+1] = 9999; pos[i*3+2] = 9999;
+      continue;
+    }
     const e = edges[p.edgeIdx];
     const a = nodeMap[e.source], b = nodeMap[e.target];
     if (!a || !b || !a.visible || !b.visible) {
@@ -3528,6 +3630,7 @@ applyFilters = function() {
 applyFilters();
 animate();
 
+})();
 </script>
 </body>
 </html>

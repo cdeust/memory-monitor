@@ -48,6 +48,35 @@ function saveBrainIndex(index) {
   fs.writeFileSync(BRAIN_INDEX_PATH, JSON.stringify(index, null, 2), "utf-8");
 }
 
+// ---------------------------------------------------------------------------
+// Shared keyword extraction
+// ---------------------------------------------------------------------------
+
+const TECHNICAL_SHORT_TERMS = new Set([
+  "api", "sql", "jwt", "cli", "mcp", "git", "auth", "ssh", "ssl", "tls",
+  "csv", "xml", "dom", "cdn", "dns", "tcp", "udp", "url", "uri", "http",
+  "grpc", "cors", "crud", "orm", "rpc", "sdk", "npm", "prd", "cicd",
+  "aws", "gcp", "k8s", "ci", "cd", "db", "io", "ui", "ux", "pr",
+  "env", "pid", "llm", "rag", "gpu", "cpu", "ram", "ssd", "eof",
+  "yml", "toml", "json", "html", "css", "wasm", "rust", "node",
+  "deno", "bash", "zsh", "vim", "tmux", "redis", "kafka", "nginx",
+  "hook", "cron", "mock", "stub", "lint", "type", "enum", "async",
+]);
+
+function extractKeywords(text) {
+  return new Set(
+    text.toLowerCase().split(/\W+/).filter(
+      (w) => w.length > 6 || (w.length >= 2 && TECHNICAL_SHORT_TERMS.has(w))
+    )
+  );
+}
+
+function nameMatchesBody(name, body) {
+  if (!name || !body || name.length <= 3) return false;
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b${escaped}\\b`, "i").test(body);
+}
+
 function simpleHash(text) {
   const str = text.slice(0, 500);
   let hash = 5381;
@@ -95,10 +124,22 @@ function categorize(text) {
 
   let best = "general";
   let bestScore = 0;
+  let bestPhraseCount = 0;
   for (const [cat, sc] of Object.entries(scores)) {
-    if (sc > bestScore) {
+    let phraseCount = 0;
+    for (const signal of CATEGORY_RULES[cat]) {
+      if (signal.includes(" ") && lower.includes(signal)) phraseCount++;
+    }
+    if (sc > bestScore + 0.5) {
       bestScore = sc;
       best = cat;
+      bestPhraseCount = phraseCount;
+    } else if (sc >= bestScore && sc > bestScore - 0.5) {
+      if (phraseCount > bestPhraseCount || (phraseCount === bestPhraseCount && sc > bestScore)) {
+        bestScore = sc;
+        best = cat;
+        bestPhraseCount = phraseCount;
+      }
     }
   }
   return best;
@@ -257,12 +298,13 @@ function discoverAllMemories() {
           file,
           path: filePath,
           project: pdir.name,
-          name: isIndex ? `Memory Index — ${pdir.name.replace(/^-Users-[^-]+-Documents-Developments-/, "").replace(/-/g, " ")}` : (meta.name || file.replace(/\.md$/, "")),
+          name: isIndex ? `Memory Index — ${pdir.name.replace(/^-Users-[^-]+(-Documents)?(-Developments)?-/, "").replace(/-/g, " ")}` : (meta.name || file.replace(/\.md$/, "")),
           description: isIndex ? "Memory index file listing all memory pointers" : (meta.description || ""),
           type: isIndex ? "memory-index" : (meta.type || "unknown"),
           body,
           nodeType: isIndex ? "memory-index" : "memory",
           modifiedAt: stat.mtime.toISOString(),
+          createdAt: stat.birthtime ? stat.birthtime.toISOString() : null,
         });
       } catch (e) {
         process.stderr.write(
@@ -397,6 +439,8 @@ function discoverConversations() {
         let permissionMode = null;
         const toolsUsed = new Set();
         let summary = null;
+        let allTextParts = [];
+        let allTextLen = 0;
 
         for (const rec of records) {
           if (rec.sessionId && !sessionId) sessionId = rec.sessionId;
@@ -423,6 +467,11 @@ function discoverConversations() {
               if (content && !content.startsWith('[Request interrupted')) {
                 if (!firstMessage) firstMessage = content;
                 if (!summary) summary = content;
+                if (allTextLen < 2000) {
+                  const chunk = content.slice(0, 2000 - allTextLen);
+                  allTextParts.push(chunk);
+                  allTextLen += chunk.length;
+                }
               }
             }
           }
@@ -444,6 +493,8 @@ function discoverConversations() {
         const fileSize = stat.size;
         const duration = (firstTimestamp && lastTimestamp) ? new Date(lastTimestamp) - new Date(firstTimestamp) : null;
         const turnCount = assistantCount;
+        const allText = allTextParts.join(" ");
+        const keywords = extractKeywords(allText);
 
         conversations.push({
           id: `conv_${idCounter++}`,
@@ -457,6 +508,8 @@ function discoverConversations() {
           messageCount,
           firstMessage: firstMessage || null,
           summary: summary || null,
+          allText: allText || null,
+          keywords,
           gitBranch: gitBranch || null,
           version: version || null,
           toolsUsed: Array.from(toolsUsed),
@@ -561,7 +614,7 @@ function discoverProjectHubs(memories, projectFiles) {
   let i = 0;
   for (const [proj, meta] of projectSet) {
     const cleanName = proj
-      .replace(/^-Users-[^-]+-Documents-Developments-/, '')
+      .replace(/^-Users-[^-]+(-Documents)?(-Developments)?-/, '')
       .replace(/-/g, ' ')
       .trim() || proj;
     hubs.push({
@@ -758,9 +811,9 @@ function buildPlanEdges(plans, memories, projectFiles, hubs) {
       edges.push({ source: plan.id, target: hub.id, weight: 0.4, edgeType: 'plan-hub' });
     }
     // Plans connect to memories with shared keywords
-    const planWords = new Set(plan.body.toLowerCase().split(/\W+/).filter(w => w.length > 6));
+    const planWords = extractKeywords(plan.body);
     for (const mem of memories) {
-      const memWords = new Set((mem.body || '').toLowerCase().split(/\W+/).filter(w => w.length > 6));
+      const memWords = extractKeywords(mem.body || '');
       let shared = 0;
       for (const w of planWords) if (memWords.has(w)) shared++;
       if (shared >= 3) edges.push({ source: plan.id, target: mem.id, weight: Math.min(shared * 0.1, 0.6), edgeType: 'plan-mem' });
@@ -879,10 +932,21 @@ function discoverProjectFiles(conversations) {
 function buildProjectFileEdges(projectFiles, memories) {
   const edges = [];
   for (const pf of projectFiles) {
+    const pfKeywords = extractKeywords(pf.body || "");
     for (const mem of memories) {
-      if (mem.project === pf.project) {
-        const weight = mem.nodeType === "memory-index" ? 0.7 : 0.35;
-        edges.push({ source: pf.id, target: mem.id, weight, edgeType: "proj-mem" });
+      if (mem.project !== pf.project) continue;
+      if (mem.nodeType === "memory-index") {
+        edges.push({ source: pf.id, target: mem.id, weight: 0.7, edgeType: "proj-mem" });
+        continue;
+      }
+      const memKeywords = extractKeywords(mem.body || "");
+      let shared = 0;
+      for (const w of pfKeywords) {
+        if (memKeywords.has(w)) shared++;
+        if (shared >= 2) break;
+      }
+      if (shared >= 2) {
+        edges.push({ source: pf.id, target: mem.id, weight: Math.min(0.3 + shared * 0.05, 0.6), edgeType: "proj-mem" });
       }
     }
   }
@@ -908,27 +972,14 @@ function buildConnectionGraph(memories) {
       // Same type
       if (a.type === b.type) weight += 0.2;
 
-      // Name reference in body
-      if (
-        a.body.toLowerCase().includes(b.name.toLowerCase()) ||
-        b.body.toLowerCase().includes(a.name.toLowerCase())
-      ) {
+      // Name reference in body (word-boundary, skip short names)
+      if (nameMatchesBody(b.name, a.body) || nameMatchesBody(a.name, b.body)) {
         weight += 0.8;
       }
 
-      // Shared keywords (words > 6 chars)
-      const wordsA = new Set(
-        a.body
-          .toLowerCase()
-          .split(/\W+/)
-          .filter((w) => w.length > 6)
-      );
-      const wordsB = new Set(
-        b.body
-          .toLowerCase()
-          .split(/\W+/)
-          .filter((w) => w.length > 6)
-      );
+      // Shared keywords
+      const wordsA = extractKeywords(a.body);
+      const wordsB = extractKeywords(b.body);
       let sharedCount = 0;
       for (const w of wordsA) {
         if (wordsB.has(w)) sharedCount++;
@@ -956,11 +1007,8 @@ function buildBrainEdges(conversations, memories) {
   for (const conv of conversations) {
     const convStart = conv.startedAt ? new Date(conv.startedAt).getTime() : 0;
     const convEnd = conv.endedAt ? new Date(conv.endedAt).getTime() : 0;
-    const oneHour = 3600000;
-    const msgLower = (conv.firstMessage || "").toLowerCase();
-    const msgWords = new Set(
-      msgLower.split(/\W+/).filter((w) => w.length > 6)
-    );
+    const convText = (conv.allText || conv.firstMessage || "").toLowerCase();
+    const convKeywords = conv.keywords || extractKeywords(convText);
 
     for (const mem of memories) {
       let weight = 0;
@@ -968,24 +1016,27 @@ function buildBrainEdges(conversations, memories) {
       // Same project
       if (conv.project === mem.project) weight += 0.4;
 
-      // Temporal overlap: memory modifiedAt within conv timeframe ± 1hr
+      // Temporal overlap: memory modified during conversation (no buffer)
       const memTime = new Date(mem.modifiedAt).getTime();
-      if (convStart && convEnd && memTime >= convStart - oneHour && memTime <= convEnd + oneHour) {
+      if (convStart && convEnd && memTime >= convStart && memTime <= convEnd) {
         weight += 0.3;
       }
+      // Bonus if memory created near conversation start (within 5 min)
+      if (mem.createdAt && convStart) {
+        const createTime = new Date(mem.createdAt).getTime();
+        if (Math.abs(createTime - convStart) < 300000) weight += 0.15;
+      }
 
-      // Memory name appears in first message
-      if (msgLower && mem.name && msgLower.includes(mem.name.toLowerCase())) {
+      // Memory name appears in conversation text (word-boundary)
+      if (nameMatchesBody(mem.name, convText)) {
         weight += 0.5;
       }
 
-      // Shared keywords between firstMessage and memory body
-      if (msgWords.size > 0) {
-        const bodyWords = new Set(
-          (mem.body || "").toLowerCase().split(/\W+/).filter((w) => w.length > 6)
-        );
+      // Shared keywords between all user messages and memory body
+      if (convKeywords.size > 0) {
+        const bodyWords = extractKeywords(mem.body || "");
         let shared = 0;
-        for (const w of msgWords) {
+        for (const w of convKeywords) {
           if (bodyWords.has(w)) shared++;
         }
         weight += Math.min(shared * 0.1, 0.3);
@@ -1002,30 +1053,42 @@ function buildBrainEdges(conversations, memories) {
     }
   }
 
-  // Conversation ↔ Conversation edges
+  // Conversation ↔ Conversation edges (content-based)
   for (let i = 0; i < conversations.length; i++) {
     for (let j = i + 1; j < conversations.length; j++) {
       const a = conversations[i];
       const b = conversations[j];
       let weight = 0;
 
-      // Same project
       if (a.project === b.project) {
-        weight += 0.15;
-
-        // Temporal proximity: same project, within 24hrs
+        weight += 0.10;
         const aEnd = a.endedAt ? new Date(a.endedAt).getTime() : 0;
         const bStart = b.startedAt ? new Date(b.startedAt).getTime() : 0;
         const bEnd = b.endedAt ? new Date(b.endedAt).getTime() : 0;
         const aStart = a.startedAt ? new Date(a.startedAt).getTime() : 0;
-        const gap = Math.min(
-          Math.abs(aEnd - bStart),
-          Math.abs(bEnd - aStart)
-        );
-        if (gap < 86400000) weight += 0.25;
+        const gap = Math.min(Math.abs(aEnd - bStart), Math.abs(bEnd - aStart));
+        if (gap < 86400000) weight += 0.10;
       }
 
-      if (weight >= 0.2) {
+      // Shared git branch
+      if (a.gitBranch && b.gitBranch && a.gitBranch === b.gitBranch) weight += 0.20;
+
+      // Shared keywords
+      const aKeys = a.keywords || extractKeywords(a.allText || a.firstMessage || "");
+      const bKeys = b.keywords || extractKeywords(b.allText || b.firstMessage || "");
+      let sharedKw = 0;
+      for (const w of aKeys) { if (bKeys.has(w)) sharedKw++; }
+      if (sharedKw >= 2) weight += Math.min(sharedKw * 0.05, 0.25);
+
+      // Shared tools (>=3 in common)
+      if (a.toolsUsed && b.toolsUsed) {
+        const aTools = new Set(a.toolsUsed);
+        let sharedTools = 0;
+        for (const t of b.toolsUsed) { if (aTools.has(t)) sharedTools++; }
+        if (sharedTools >= 3) weight += 0.10;
+      }
+
+      if (weight >= 0.3) {
         edges.push({
           source: a.id,
           target: b.id,
@@ -1195,33 +1258,40 @@ function startUIServer(graphData) {
       return;
     }
 
-    // Inject graph data — strip conversation-heavy fields, keep body for knowledge nodes
+    // Prepare client data (strip internal fields, keep everything else for async loading)
     const clientData = {
       nodes: graphData.nodes.map(n => {
-        const { _filePath, ...rest } = n;
-        if (n.nodeType === 'conversation') {
-          const { body: _b, firstMessage: _fm, summary: _s, ...convRest } = rest;
-          return convRest;
-        }
+        const { _filePath, allText: _at, keywords: _kw, ...rest } = n;
         return rest;
       }),
       edges: graphData.edges,
     };
+    // Serialize once for the API endpoint
+    const clientDataJSON = JSON.stringify(clientData);
+
+    // Tell the UI to fetch data async instead of inlining it
     html = html.replace(
       "/*__GRAPH_DATA__*/",
-      `window.__GRAPH_DATA__ = ${JSON.stringify(clientData)};`
+      `window.__GRAPH_DATA_URL__ = "/api/graph";`
     );
 
     const server = http.createServer((req, res) => {
       resetIdleTimer();
       const url = new URL(req.url, "http://localhost");
 
+      // Async graph data endpoint
+      if (url.pathname === "/api/graph") {
+        res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-cache" });
+        res.end(clientDataJSON);
+        return;
+      }
+
       // Brain visualization (volumetric particle mode)
       if (url.pathname === "/brain") {
         const brainPath = path.join(__dirname, "..", "ui", "brain.html");
         try {
           let brainHtml = fs.readFileSync(brainPath, "utf-8");
-          brainHtml = brainHtml.replace("/*__GRAPH_DATA__*/", `window.__GRAPH_DATA__ = ${JSON.stringify(clientData)};`);
+          brainHtml = brainHtml.replace("/*__GRAPH_DATA__*/", `window.__GRAPH_DATA_URL__ = "/api/graph";`);
           res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" });
           res.end(brainHtml);
         } catch (e) {
@@ -1498,7 +1568,7 @@ const TOOLS = {
       const todoEdges = buildTodoEdges(todos, hubs);
 
       const allNodes = [...enrichedMemNodes, ...convNodes, ...projectFiles, ...globalNodes, ...hubs, ...plans, ...mcpTools, ...plugins, ...todos];
-      const allEdges = [...memEdges, ...brainEdges, ...projEdges, ...hubEdges, ...planEdges, ...mcpEdges, ...pluginEdges, ...todoEdges];
+      const rawEdges = [...memEdges, ...brainEdges, ...projEdges, ...hubEdges, ...planEdges, ...mcpEdges, ...pluginEdges, ...todoEdges];
 
       // Add cross-reference edges
       const nodeIdByKey = {};
@@ -1509,7 +1579,7 @@ const TOOLS = {
         if (entry.crossRefs && nodeIdByKey[key]) {
           for (const ref of entry.crossRefs) {
             if (nodeIdByKey[ref]) {
-              allEdges.push({ source: nodeIdByKey[key], target: nodeIdByKey[ref], weight: 1.0, edgeType: "cross-ref" });
+              rawEdges.push({ source: nodeIdByKey[key], target: nodeIdByKey[ref], weight: 1.0, edgeType: "cross-ref" });
             }
           }
         }
@@ -1518,11 +1588,20 @@ const TOOLS = {
         if (entry.crossRefs && nodeIdByKey[key]) {
           for (const ref of entry.crossRefs) {
             if (nodeIdByKey[ref]) {
-              allEdges.push({ source: nodeIdByKey[key], target: nodeIdByKey[ref], weight: 1.0, edgeType: "cross-ref" });
+              rawEdges.push({ source: nodeIdByKey[key], target: nodeIdByKey[ref], weight: 1.0, edgeType: "cross-ref" });
             }
           }
         }
       }
+
+      // Deduplicate edges — keep highest weight per pair
+      const edgeMap = new Map();
+      for (const edge of rawEdges) {
+        const k = edge.source < edge.target ? `${edge.source}|${edge.target}` : `${edge.target}|${edge.source}`;
+        const existing = edgeMap.get(k);
+        if (!existing || edge.weight > existing.weight) edgeMap.set(k, edge);
+      }
+      const allEdges = Array.from(edgeMap.values());
 
       return {
         nodes: allNodes,
@@ -1905,7 +1984,7 @@ const TOOLS = {
       const todoEdges = buildTodoEdges(todos, hubs);
 
       const allNodes = [...enrichedMemories, ...convNodes, ...projectFiles, ...globalNodes, ...hubs, ...plans, ...mcpTools, ...plugins, ...todos];
-      const allEdges = [...memEdges, ...brainEdges, ...projEdges, ...hubEdges, ...planEdges, ...mcpEdges, ...pluginEdges, ...todoEdges];
+      const rawEdges = [...memEdges, ...brainEdges, ...projEdges, ...hubEdges, ...planEdges, ...mcpEdges, ...pluginEdges, ...todoEdges];
 
       // Add cross-reference edges
       const nodeIdByKey = {};
@@ -1916,7 +1995,7 @@ const TOOLS = {
         if (entry.crossRefs && nodeIdByKey[key]) {
           for (const ref of entry.crossRefs) {
             if (nodeIdByKey[ref]) {
-              allEdges.push({ source: nodeIdByKey[key], target: nodeIdByKey[ref], weight: 1.0, edgeType: "cross-ref" });
+              rawEdges.push({ source: nodeIdByKey[key], target: nodeIdByKey[ref], weight: 1.0, edgeType: "cross-ref" });
             }
           }
         }
@@ -1925,11 +2004,20 @@ const TOOLS = {
         if (entry.crossRefs && nodeIdByKey[key]) {
           for (const ref of entry.crossRefs) {
             if (nodeIdByKey[ref]) {
-              allEdges.push({ source: nodeIdByKey[key], target: nodeIdByKey[ref], weight: 1.0, edgeType: "cross-ref" });
+              rawEdges.push({ source: nodeIdByKey[key], target: nodeIdByKey[ref], weight: 1.0, edgeType: "cross-ref" });
             }
           }
         }
       }
+
+      // Deduplicate edges — keep highest weight per pair
+      const edgeMap2 = new Map();
+      for (const edge of rawEdges) {
+        const k = edge.source < edge.target ? `${edge.source}|${edge.target}` : `${edge.target}|${edge.source}`;
+        const existing = edgeMap2.get(k);
+        if (!existing || edge.weight > existing.weight) edgeMap2.set(k, edge);
+      }
+      const allEdges = Array.from(edgeMap2.values());
 
       // graphData keeps _filePath for server-side API; stripped in HTML injection
       const graphData = { nodes: allNodes, edges: allEdges };
